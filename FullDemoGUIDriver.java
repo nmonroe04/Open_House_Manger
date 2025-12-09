@@ -620,6 +620,9 @@ private static class KioskPanel extends JPanel {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM dd yyyy HH:mm");
         boolean foundEvents = false;
 
+        // ✅ New: track which events we've already added (by id)
+        java.util.Set<String> seenEventIds = new java.util.HashSet<>();
+
         for (Person p : people) {
             if (p instanceof Agent) {
                 Agent agent = (Agent) p;
@@ -632,8 +635,12 @@ private static class KioskPanel extends JPanel {
                     if (evs == null) continue;
 
                     for (Event e : evs) {
-                        // ✅ Only allow active events
                         if (!e.isActive() || e.isClosed()) continue;
+
+                        // 🔍 Skip duplicates by eventId
+                        if (!seenEventIds.add(e.getEventId())) {
+                            continue;
+                        }
 
                         foundEvents = true;
                         eventObjects.add(e);
@@ -655,6 +662,7 @@ private static class KioskPanel extends JPanel {
             );
         }
     }
+
 
 
     /** Handle the visitor pressing "Check In". */
