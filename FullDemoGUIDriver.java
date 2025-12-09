@@ -72,6 +72,12 @@ public class FullDemoGUIDriver {
                 "Modern home near downtown, great for entertaining."
         );
 
+        house1.addImagePath("/org/finalproject/images/houses/mainhousefront.jpg");
+        house1.addImagePath("/org/finalproject/images/houses/mainhouseinside.jpg");
+        
+        house2.addImagePath("/org/finalproject/images/houses/oakhousefront.jpg");
+        house2.addImagePath("/org/finalproject/images/houses/oakhouseinside.jpg");
+
         // Give Alice two houses, Noah two (house1 & house3)
         alice.addProperty(house1);
         alice.addProperty(house2);
