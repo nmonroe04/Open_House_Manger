@@ -153,10 +153,17 @@ public class Event implements Serializable{
     // --- RSVP Methods ---
 
     public void addInvitee(Visitor visitor) {
-        if (visitor != null && !closed) {
-            rsvps.putIfAbsent(visitor, RSVPStatus.NO_RESPONSE);
+        if (visitor == null) return;
+
+        // Only allow invitees when the event is scheduled or active, and not closed
+        if (closed || (!scheduled && !active)) {
+            // Model stays silent; GUI will show the error
+            return;
         }
+
+        rsvps.putIfAbsent(visitor, RSVPStatus.NO_RESPONSE);
     }
+
 
     public void setRsvp(Visitor visitor, RSVPStatus status) {
         if (visitor == null || status == null || closed) {
