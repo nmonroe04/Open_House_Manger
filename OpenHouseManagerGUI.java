@@ -937,8 +937,8 @@ public class OpenHouseManagerGUI extends JFrame {
             JPanel photoControls = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 4));
             photoControls.setOpaque(false);
 
-            prevPhotoButton = createSecondaryButton("◀");
-            nextPhotoButton = createSecondaryButton("▶");
+            prevPhotoButton = createSecondaryButton("Back");
+            nextPhotoButton = createSecondaryButton("Next");
             JButton addPhotosButton = createSecondaryButton("Add Photos");
 
             prevPhotoButton.addActionListener(e -> showPhoto(currentPhotoIndex - 1));
