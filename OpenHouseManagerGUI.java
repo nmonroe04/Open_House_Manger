@@ -10,6 +10,7 @@ import javax.swing.plaf.ButtonUI;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 //added by Noah
 import java.time.LocalDateTime;
@@ -50,7 +51,7 @@ public class OpenHouseManagerGUI extends JFrame {
     private static final String CARD_CHECKINS   = "CHECKINS";
     private static final String CARD_EMAIL      = "EMAIL";
     private static final String CARD_KIOSK      = "KIOSK";   // added 12/8
-
+    private static final String CARD_VISITORS   = "VISITORS";
 
     // Panels
     private WelcomePanel welcomePanel;
@@ -62,6 +63,7 @@ public class OpenHouseManagerGUI extends JFrame {
     private CheckInPanel checkInPanel;
     private EmailPanel emailPanel;
     private KioskPanel kioskPanel;
+    private VisitorsPanel visitorsPanel;
     
     private AnimatedBackgroundPanel backgroundPanel;
     
@@ -93,6 +95,9 @@ public class OpenHouseManagerGUI extends JFrame {
         checkInPanel       = new CheckInPanel(this);
         emailPanel         = new EmailPanel(this);
         kioskPanel         = new KioskPanel(this);
+        visitorsPanel      = new VisitorsPanel(this);
+        
+        
         // Register cards
         mainPanel.add(welcomePanel,       CARD_WELCOME);
         mainPanel.add(loginPanel,         CARD_LOGIN);
@@ -103,7 +108,7 @@ public class OpenHouseManagerGUI extends JFrame {
         mainPanel.add(checkInPanel,       CARD_CHECKINS);
         mainPanel.add(emailPanel,         CARD_EMAIL);
         mainPanel.add(kioskPanel,         CARD_KIOSK);
-
+        mainPanel.add(visitorsPanel,      CARD_VISITORS);
         //setContentPane(mainPanel);
         
         backgroundPanel.add(mainPanel, BorderLayout.CENTER);
@@ -150,6 +155,8 @@ public class OpenHouseManagerGUI extends JFrame {
             emailPanel.refresh();
         } else if (CARD_KIOSK.equals(cardName)) {
             kioskPanel.refresh();
+        }else if (CARD_VISITORS.equals(cardName)) {   
+            visitorsPanel.refresh();
         }
 
         cardLayout.show(mainPanel, cardName);
@@ -613,6 +620,9 @@ private static class KioskPanel extends JPanel {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM dd yyyy HH:mm");
         boolean foundEvents = false;
 
+        // ✅ New: track which events we've already added (by id)
+        java.util.Set<String> seenEventIds = new java.util.HashSet<>();
+
         for (Person p : people) {
             if (p instanceof Agent) {
                 Agent agent = (Agent) p;
@@ -625,8 +635,12 @@ private static class KioskPanel extends JPanel {
                     if (evs == null) continue;
 
                     for (Event e : evs) {
-                        // ✅ Only allow active events
                         if (!e.isActive() || e.isClosed()) continue;
+
+                        // 🔍 Skip duplicates by eventId
+                        if (!seenEventIds.add(e.getEventId())) {
+                            continue;
+                        }
 
                         foundEvents = true;
                         eventObjects.add(e);
@@ -648,6 +662,7 @@ private static class KioskPanel extends JPanel {
             );
         }
     }
+
 
 
     /** Handle the visitor pressing "Check In". */
@@ -764,18 +779,21 @@ private static class KioskPanel extends JPanel {
             JButton checkinButton = createPrimaryButton("Check-in Records");
             JButton eventsButton  = createPrimaryButton("Events");
             JButton housesButton  = createPrimaryButton("Houses");
+            JButton visitorsButton = createPrimaryButton("Visitors");
             JButton emailButton   = createPrimaryButton("Send Email");
             JButton logoutButton  = createSecondaryButton("Logout");
 
             checkinButton.setAlignmentX(Component.CENTER_ALIGNMENT);
             eventsButton.setAlignmentX(Component.CENTER_ALIGNMENT);
             housesButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+            visitorsButton.setAlignmentX(Component.CENTER_ALIGNMENT);
             emailButton.setAlignmentX(Component.CENTER_ALIGNMENT);
             logoutButton.setAlignmentX(Component.CENTER_ALIGNMENT);
 
             checkinButton.addActionListener(e -> parent.showScreen(CARD_CHECKINS));
             eventsButton.addActionListener(e -> parent.showScreen(CARD_EVENTS));
             housesButton.addActionListener(e -> parent.showScreen(CARD_HOUSES));
+            visitorsButton.addActionListener(e -> parent.showScreen(CARD_VISITORS));
             emailButton.addActionListener(e -> parent.showScreen(CARD_EMAIL));
             logoutButton.addActionListener(e -> parent.logout());
 
@@ -786,6 +804,8 @@ private static class KioskPanel extends JPanel {
             card.add(eventsButton);
             card.add(Box.createRigidArea(new Dimension(0, 10)));
             card.add(housesButton);
+            card.add(Box.createRigidArea(new Dimension(0, 10)));
+            card.add(visitorsButton); 
             card.add(Box.createRigidArea(new Dimension(0, 10)));
             card.add(emailButton);
             card.add(Box.createRigidArea(new Dimension(0, 15)));
@@ -1746,191 +1766,542 @@ private static class KioskPanel extends JPanel {
     
     
     
-    
+    // ======================================================
+    //  VISITORS PANEL (Directory + Check-in History)
+    // ======================================================
+    private static class VisitorsPanel extends JPanel {
+        private OpenHouseManagerGUI parent;
+        private JList<String> visitorList;
+        private DefaultListModel<String> listModel;
+        private JTextArea detailsArea;
+
+        private java.util.List<Visitor> visitorObjects = new ArrayList<>();
+        private JCheckBox mailingListBox;
+        private boolean suppressMailingListEvents = false;
+
+        public VisitorsPanel(OpenHouseManagerGUI parent) {
+            this.parent = parent;
+            setOpaque(false);
+            setLayout(new BorderLayout(10, 10));
+
+            // ----- HEADER -----
+            JPanel header = new JPanel(new BorderLayout());
+            header.setOpaque(true);
+            header.setBackground(new Color(255, 255, 255, 220));
+            header.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+
+            JLabel title = new JLabel("Visitors");
+            title.setFont(new Font("Century Gothic", Font.BOLD, 20));
+            title.setForeground(new Color(40, 40, 40));
+
+            JPanel headerButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+            headerButtons.setOpaque(false);
+            JButton backButton = createSecondaryButton("Back");
+            backButton.addActionListener(e -> parent.showScreen(CARD_DASHBOARD));
+            headerButtons.add(backButton);
+
+            header.add(title, BorderLayout.WEST);
+            header.add(headerButtons, BorderLayout.EAST);
+
+            add(header, BorderLayout.NORTH);
+
+            // ----- LEFT: VISITOR LIST -----
+            listModel = new DefaultListModel<>();
+            visitorList = new JList<>(listModel);
+            visitorList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            JScrollPane listScroll = new JScrollPane(visitorList);
+
+            // ----- RIGHT: DETAILS + MAILING LIST CHECKBOX -----
+            detailsArea = new JTextArea();
+            detailsArea.setEditable(false);
+            detailsArea.setLineWrap(true);
+            detailsArea.setWrapStyleWord(true);
+            detailsArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+            JScrollPane detailsScroll = new JScrollPane(detailsArea);
+
+            JPanel rightPanel = new JPanel(new BorderLayout());
+            rightPanel.setOpaque(false);
+            rightPanel.add(detailsScroll, BorderLayout.CENTER);
+
+            JPanel mailingPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            mailingPanel.setOpaque(false);
+            mailingListBox = new JCheckBox("Subscribed to mailing list");
+            mailingListBox.setOpaque(false);
+            mailingPanel.add(mailingListBox);
+            rightPanel.add(mailingPanel, BorderLayout.SOUTH);
+
+            // ----- SPLIT PANE -----
+            JSplitPane split = new JSplitPane(
+                    JSplitPane.HORIZONTAL_SPLIT,
+                    listScroll,
+                    rightPanel
+            );
+            split.setDividerLocation(260);
+            split.setResizeWeight(0.3);
+            split.setContinuousLayout(true);
+
+            add(split, BorderLayout.CENTER);
+
+            // List selection -> update details
+            visitorList.addListSelectionListener(e -> {
+                if (!e.getValueIsAdjusting()) {
+                    showVisitorDetails(visitorList.getSelectedIndex());
+                }
+            });
+
+            // Checkbox -> update mailing-list consent on Visitor
+            mailingListBox.addActionListener(e -> {
+                if (suppressMailingListEvents) return;
+                int index = visitorList.getSelectedIndex();
+                if (index < 0 || index >= visitorObjects.size()) return;
+                Visitor v = visitorObjects.get(index);
+                // adjust method name if different in your Visitor class
+                v.setMailingListConsent(mailingListBox.isSelected());
+            });
+        }
+
+        /** Rebuild list of unique visitors for the current agent. */
+        public void refresh() {
+            listModel.clear();
+            detailsArea.setText("");
+            visitorObjects.clear();
+
+            mailingListBox.setSelected(false);
+            mailingListBox.setEnabled(false);
+            visitorList.setEnabled(true);
+
+            Agent agent = parent.getCurrentAgent();
+            if (agent == null) {
+                listModel.addElement("(No agent logged in)");
+                visitorList.setEnabled(false);
+                return;
+            }
+
+            java.util.List<House> houses = agent.getProperties();
+            if (houses == null || houses.isEmpty()) {
+                listModel.addElement("(No houses / visitors yet)");
+                visitorList.setEnabled(false);
+                return;
+            }
+
+            // Use email as a key to dedupe visitors
+            Map<String, Visitor> byEmail = new LinkedHashMap<>();
+
+            for (House h : houses) {
+                java.util.List<Event> evs = h.getEvents();
+                if (evs == null) continue;
+                for (Event e : evs) {
+                    java.util.List<Visitor> vs = e.getVisitors();
+                    if (vs == null) continue;
+                    for (Visitor v : vs) {
+                        if (v == null) continue;
+                        String email = v.getEmail() == null ? "" : v.getEmail();
+                        if (!byEmail.containsKey(email)) {
+                            byEmail.put(email, v);
+                        }
+                    }
+                }
+            }
+
+            if (byEmail.isEmpty()) {
+                listModel.addElement("(No visitors yet)");
+                visitorList.setEnabled(false);
+                return;
+            }
+
+            mailingListBox.setEnabled(true);
+
+            for (Visitor v : byEmail.values()) {
+                visitorObjects.add(v);
+                String label = v.getName() + " <" + v.getEmail() + ">";
+                listModel.addElement(label);
+            }
+
+            // Optionally auto-select first visitor
+            if (!visitorObjects.isEmpty()) {
+                visitorList.setSelectedIndex(0);
+                showVisitorDetails(0);
+            }
+        }
+
+        /** Show details + history for the selected visitor. */
+        private void showVisitorDetails(int index) {
+            if (index < 0 || index >= visitorObjects.size()) {
+                detailsArea.setText("");
+                suppressMailingListEvents = true;
+                mailingListBox.setSelected(false);
+                suppressMailingListEvents = false;
+                return;
+            }
+
+            Visitor v = visitorObjects.get(index);
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("Name: ").append(v.getName()).append("\n");
+            sb.append("Email: ").append(v.getEmail()).append("\n");
+            sb.append("Phone: ").append(v.getPhone()).append("\n");
+
+            // Adjust this getter name if your Visitor uses something different
+            boolean onList = false;
+            try {
+                onList = v.hasMailingListConsent();   // <--- change to match your Visitor API if needed
+            } catch (Exception ex) {
+                // If no getter exists, just leave onList = false or replace with your own.
+            }
+            sb.append("Mailing List Consent: ").append(onList ? "Yes" : "No").append("\n\n");
+
+            sb.append("Check-in History:\n");
+            java.util.List<CheckInRecord> history = v.getCheckInHistory();
+            if (history == null || history.isEmpty()) {
+                sb.append("  (No check-in records)\n");
+            } else {
+                DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM dd yyyy HH:mm");
+                for (CheckInRecord rec : history) {
+                    Event e = rec.getEvent();
+                    sb.append("  • ")
+                      .append(e.getEventId())
+                      .append(" at ").append(e.getAddress())
+                      .append(" on ").append(rec.getTimestamp().format(fmt))
+                      .append("\n");
+                }
+            }
+
+            detailsArea.setText(sb.toString());
+            detailsArea.setCaretPosition(0);
+
+            // Sync checkbox without firing the listener
+            suppressMailingListEvents = true;
+            mailingListBox.setSelected(onList);
+            suppressMailingListEvents = false;
+        }
+    }
+
     
     
     // ======================================================
     //  EMAIL PANEL
     // ======================================================
     private static class EmailPanel extends JPanel {
-        private OpenHouseManagerGUI parent;
-        private JComboBox<String> eventCombo;
-        private java.util.List<Event> eventObjects = new ArrayList<>();
-        private JTextField subjectField;
-        private JTextArea bodyArea;
+    	private OpenHouseManagerGUI parent;
 
-        public EmailPanel(OpenHouseManagerGUI parent) {
-            this.parent = parent;
-            setOpaque(false);
-            setLayout(new GridBagLayout());  // center the card
+    	private JComboBox<String> eventCombo;
+    	private java.util.List<Event> eventObjects = new ArrayList<>();
 
-            JPanel card = new JPanel(new BorderLayout(10, 10));
-            card.setOpaque(true);
-            card.setBackground(new Color(255, 255, 255, 230));
-            card.setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
+    	private JTextField subjectField;
+    	private JTextArea bodyArea;
 
-            // ---------- HEADER ----------
-            JPanel header = new JPanel(new BorderLayout());
-            header.setOpaque(false);
+    	// NEW: recipients on the right
+    	private DefaultListModel<String> recipientListModel;
+    	private JList<String> recipientList;
+    	private java.util.List<Visitor> recipientObjects = new ArrayList<>();
+    	private JLabel recipientCountLabel;
 
-            JLabel title = new JLabel("Send Email to Event Visitors");
-            title.setFont(new Font("Century Gothic", Font.BOLD, 18));
+    	public EmailPanel(OpenHouseManagerGUI parent) {
+    	this.parent = parent;
+    	setOpaque(false);
+    	setLayout(new GridBagLayout()); // center the card
 
-            JPanel headerButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
-            headerButtons.setOpaque(false);
+    	JPanel card = new JPanel(new BorderLayout(10, 10));
+    	card.setOpaque(true);
+    	card.setBackground(new Color(255, 255, 255, 230));
+    	card.setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
 
-            JButton backButton = createSecondaryButton("Back");
-            backButton.addActionListener(e -> parent.showScreen(CARD_DASHBOARD));
+    	// ---------- HEADER ----------
+    	JPanel header = new JPanel(new BorderLayout());
+    	header.setOpaque(false);
 
-            headerButtons.add(backButton);
+    	JLabel title = new JLabel("Send Email to Event Visitors");
+    	title.setFont(new Font("Century Gothic", Font.BOLD, 18));
 
-            header.add(title, BorderLayout.WEST);
-            header.add(headerButtons, BorderLayout.EAST);
+    	JPanel headerButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+    	headerButtons.setOpaque(false);
 
-            card.add(header, BorderLayout.NORTH);
+    	JButton backButton = createSecondaryButton("Back");
+    	backButton.addActionListener(e -> parent.showScreen(CARD_DASHBOARD));
 
-            // ---------- CENTER: FORM ----------
-            JPanel form = new JPanel();
-            form.setOpaque(false);
-            form.setLayout(new GridBagLayout());
-            GridBagConstraints gbc = new GridBagConstraints();
-            gbc.insets = new Insets(6, 4, 6, 4);
-            gbc.fill = GridBagConstraints.HORIZONTAL;
-            gbc.gridx = 0;
-            gbc.gridy = 0;
-            gbc.weightx = 0;
+    	headerButtons.add(backButton);
 
-            // Event selector
-            form.add(new JLabel("Event:"), gbc);
-            gbc.gridx = 1;
-            gbc.weightx = 1.0;
+    	header.add(title, BorderLayout.WEST);
+    	header.add(headerButtons, BorderLayout.EAST);
 
-            eventCombo = new JComboBox<>();
-            eventCombo.setPrototypeDisplayValue("Select an event...");
-            form.add(eventCombo, gbc);
+    	card.add(header, BorderLayout.NORTH);
 
-            // Subject
-            gbc.gridy++;
-            gbc.gridx = 0;
-            gbc.weightx = 0;
-            form.add(new JLabel("Subject:"), gbc);
+    	// ---------- CENTER: LEFT FORM + RIGHT RECIPIENT LIST ----------
+    	JPanel centerPanel = new JPanel(new BorderLayout(10, 0));
+    	centerPanel.setOpaque(false);
 
-            gbc.gridx = 1;
-            gbc.weightx = 1.0;
-            subjectField = new JTextField();
-            form.add(subjectField, gbc);
+    	// ---- LEFT: form ----
+    	JPanel form = new JPanel();
+    	form.setOpaque(false);
+    	form.setLayout(new GridBagLayout());
+    	GridBagConstraints gbc = new GridBagConstraints();
+    	gbc.insets = new Insets(6, 4, 6, 4);
+    	gbc.fill = GridBagConstraints.HORIZONTAL;
+    	gbc.gridx = 0;
+    	gbc.gridy = 0;
+    	gbc.weightx = 0;
 
-            // Body
-            gbc.gridy++;
-            gbc.gridx = 0;
-            gbc.gridwidth = 2;
-            gbc.weightx = 1.0;
-            gbc.fill = GridBagConstraints.BOTH;
-            gbc.weighty = 1.0;
+    	// Event selector
+    	form.add(new JLabel("Event:"), gbc);
+    	gbc.gridx = 1;
+    	gbc.weightx = 1.0;
 
-            bodyArea = new JTextArea(8, 40);
-            bodyArea.setLineWrap(true);
-            bodyArea.setWrapStyleWord(true);
-            JScrollPane bodyScroll = new JScrollPane(bodyArea);
-            form.add(bodyScroll, gbc);
+    	eventCombo = new JComboBox<>();
+    	eventCombo.setPrototypeDisplayValue("Select an event...");
+    	form.add(eventCombo, gbc);
 
-            card.add(form, BorderLayout.CENTER);
+    	// Subject
+    	gbc.gridy++;
+    	gbc.gridx = 0;
+    	gbc.weightx = 0;
+    	form.add(new JLabel("Subject:"), gbc);
 
-            // ---------- FOOTER: SEND BUTTON ----------
-            JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-            footer.setOpaque(false);
+    	gbc.gridx = 1;
+    	gbc.weightx = 1.0;
+    	subjectField = new JTextField();
+    	form.add(subjectField, gbc);
 
-            JButton sendButton = createPrimaryButton("Prepare & Send Emails");
-            sendButton.addActionListener(e -> sendEmails());
-            footer.add(sendButton);
+    	// Body
+    	gbc.gridy++;
+    	gbc.gridx = 0;
+    	gbc.gridwidth = 2;
+    	gbc.weightx = 1.0;
+    	gbc.fill = GridBagConstraints.BOTH;
+    	gbc.weighty = 1.0;
 
-            card.add(footer, BorderLayout.SOUTH);
+    	bodyArea = new JTextArea(8, 40);
+    	bodyArea.setLineWrap(true);
+    	bodyArea.setWrapStyleWord(true);
+    	JScrollPane bodyScroll = new JScrollPane(bodyArea);
+    	form.add(bodyScroll, gbc);
 
-            // Center card in this panel
-            GridBagConstraints outer = new GridBagConstraints();
-            outer.gridx = 0;
-            outer.gridy = 0;
-            add(card, outer);
-        }
+    	centerPanel.add(form, BorderLayout.CENTER);
 
-        public void refresh() {
-            eventCombo.removeAllItems();
-            eventObjects.clear();
+    	// ---- RIGHT: recipients ----
+    	JPanel recipientsPanel = new JPanel(new BorderLayout(5, 5));
+    	recipientsPanel.setOpaque(false);
 
-            Agent agent = parent.getCurrentAgent();
-            if (agent == null) return;
+    	JLabel recipientsTitle = new JLabel("Recipients");
+    	recipientsTitle.setFont(new Font("Century Gothic", Font.BOLD, 14));
+    	recipientsPanel.add(recipientsTitle, BorderLayout.NORTH);
 
-            java.util.List<House> houses = agent.getProperties();
-            if (houses == null) return;
+    	recipientListModel = new DefaultListModel<>();
+    	recipientList = new JList<>(recipientListModel);
+    	recipientList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM dd yyyy HH:mm");
+    	JScrollPane recipientsScroll = new JScrollPane(recipientList);
+    	recipientsScroll.setPreferredSize(new Dimension(260, 200));
+    	recipientsPanel.add(recipientsScroll, BorderLayout.CENTER);
 
-            for (House h : houses) {
-                java.util.List<Event> evs = h.getEvents();
-                if (evs == null) continue;
-                for (Event e : evs) {
-                    eventObjects.add(e);
-                    String label = e.getEventId()
-                            + " - " + h.getAddress()
-                            + " - " + (e.getStartTime() != null ? e.getStartTime().format(fmt) : "No time");
-                    eventCombo.addItem(label);
-                }
-            }
-        }
+    	// bottom: select all / clear + count
+    	JPanel recipientsBottom = new JPanel(new BorderLayout());
+    	recipientsBottom.setOpaque(false);
 
-        private void sendEmails() {
-            int index = eventCombo.getSelectedIndex();
-            if (index < 0 || index >= eventObjects.size()) {
-                JOptionPane.showMessageDialog(
-                        parent,
-                        "Please select an event.",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
-                return;
-            }
+    	JPanel recipientButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+    	recipientButtons.setOpaque(false);
+    	JButton selectAllButton = createSecondaryButton("Select All");
+    	JButton clearSelectionBtn = createSecondaryButton("Clear");
 
-            String subject = subjectField.getText().trim();
-            String bodyTemplate = bodyArea.getText().trim();
+    	selectAllButton.addActionListener(e -> {
+    	int size = recipientListModel.getSize();
+    	if (size > 0) {
+    	recipientList.setSelectionInterval(0, size - 1);
+    	}
+    	});
 
-            if (subject.isEmpty() || bodyTemplate.isEmpty()) {
-                JOptionPane.showMessageDialog(
-                        parent,
-                        "Subject and body cannot be empty.",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
-                return;
-            }
+    	clearSelectionBtn.addActionListener(e -> recipientList.clearSelection());
 
-            Agent agent = parent.getCurrentAgent();
-            if (agent == null) {
-                JOptionPane.showMessageDialog(
-                        parent,
-                        "No agent logged in.",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
-                return;
-            }
+    	recipientButtons.add(selectAllButton);
+    	recipientButtons.add(clearSelectionBtn);
 
-            Event event = eventObjects.get(index);
-            ArrayList<Email> emails = agent.prepareEmailsForEvent(event, subject, bodyTemplate);
+    	recipientCountLabel = new JLabel("Selected 0 of 0");
+    	recipientCountLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
 
-            MessagingService ms = new MessagingService();
-            ms.enqueueEmails(emails);
-            ms.sendAll();
+    	recipientsBottom.add(recipientButtons, BorderLayout.WEST);
+    	recipientsBottom.add(recipientCountLabel, BorderLayout.EAST);
 
-            JOptionPane.showMessageDialog(
-                    parent,
-                    "Prepared and sent " + emails.size() + " emails.",
-                    "Emails Sent",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
-        }
-    }
-    
-    
+    	recipientsPanel.add(recipientsBottom, BorderLayout.SOUTH);
+
+    	centerPanel.add(recipientsPanel, BorderLayout.EAST);
+
+    	card.add(centerPanel, BorderLayout.CENTER);
+
+    	// ---------- FOOTER: SEND BUTTON ----------
+    	JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+    	footer.setOpaque(false);
+
+    	JButton sendButton = createPrimaryButton("Prepare & Send Emails");
+    	sendButton.addActionListener(e -> sendEmails());
+    	footer.add(sendButton);
+
+    	card.add(footer, BorderLayout.SOUTH);
+
+    	// Center card in this panel
+    	GridBagConstraints outer = new GridBagConstraints();
+    	outer.gridx = 0;
+    	outer.gridy = 0;
+    	add(card, outer);
+
+    	// When event changes, refresh recipients
+    	eventCombo.addActionListener(e -> loadRecipientsForSelectedEvent());
+
+    	// Update count when selection changes
+    	recipientList.addListSelectionListener(e -> {
+    	if (!e.getValueIsAdjusting()) {
+    	updateRecipientCount();
+    	}
+    	});
+    	}
+
+    	// Called from showScreen(CARD_EMAIL)
+    	public void refresh() {
+    	eventCombo.removeAllItems();
+    	eventObjects.clear();
+
+    	recipientListModel.clear();
+    	recipientObjects.clear();
+    	updateRecipientCount();
+
+    	Agent agent = parent.getCurrentAgent();
+    	if (agent == null) return;
+
+    	java.util.List<House> houses = agent.getProperties();
+    	if (houses == null) return;
+
+    	DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM dd yyyy HH:mm");
+
+    	for (House h : houses) {
+    	java.util.List<Event> evs = h.getEvents();
+    	if (evs == null) continue;
+    	for (Event e : evs) {
+    	eventObjects.add(e);
+    	String label = e.getEventId()
+    	+ " - " + h.getAddress()
+    	+ " - " + (e.getStartTime() != null ? e.getStartTime().format(fmt) : "No time");
+    	eventCombo.addItem(label);
+    	}
+    	}
+
+    	// Auto-load recipients for first event, if any
+    	if (!eventObjects.isEmpty()) {
+    	eventCombo.setSelectedIndex(0);
+    	loadRecipientsForSelectedEvent();
+    	}
+    	}
+
+    	private void loadRecipientsForSelectedEvent() {
+    	recipientListModel.clear();
+    	recipientObjects.clear();
+
+    	int idx = eventCombo.getSelectedIndex();
+    	if (idx < 0 || idx >= eventObjects.size()) {
+    	updateRecipientCount();
+    	return;
+    	}
+
+    	Event event = eventObjects.get(idx);
+    	java.util.List<Visitor> visitors = event.getVisitors();
+    	if (visitors == null) {
+    	updateRecipientCount();
+    	return;
+    	}
+
+    	for (Visitor v : visitors) {
+    	// If you later split first/last name, change this line accordingly
+    	String display = v.getName() + " - " + v.getEmail();
+    	recipientObjects.add(v);
+    	recipientListModel.addElement(display);
+    	}
+
+    	// By default, select all recipients for convenience
+    	if (!recipientObjects.isEmpty()) {
+    	recipientList.setSelectionInterval(0, recipientObjects.size() - 1);
+    	}
+
+    	updateRecipientCount();
+    	}
+
+    	private void updateRecipientCount() {
+    	int total = recipientListModel.getSize();
+    	int selected = recipientList.getSelectedIndices().length;
+    	recipientCountLabel.setText("Selected " + selected + " of " + total);
+    	}
+
+    	private void sendEmails() {
+    	int eventIndex = eventCombo.getSelectedIndex();
+    	if (eventIndex < 0 || eventIndex >= eventObjects.size()) {
+    	JOptionPane.showMessageDialog(
+    	parent,
+    	"Please select an event.",
+    	"Error",
+    	JOptionPane.ERROR_MESSAGE
+    	);
+    	return;
+    	}
+
+    	String subject = subjectField.getText().trim();
+    	String bodyTemplate = bodyArea.getText().trim();
+
+    	if (subject.isEmpty() || bodyTemplate.isEmpty()) {
+    	JOptionPane.showMessageDialog(
+    	parent,
+    	"Subject and body cannot be empty.",
+    	"Error",
+    	JOptionPane.ERROR_MESSAGE
+    	);
+    	return;
+    	}
+
+    	Agent agent = parent.getCurrentAgent();
+    	if (agent == null) {
+    	JOptionPane.showMessageDialog(
+    	parent,
+    	"No agent logged in.",
+    	"Error",
+    	JOptionPane.ERROR_MESSAGE
+    	);
+    	return;
+    	}
+
+    	// Use only the selected visitors
+    	int[] selectedIdx = recipientList.getSelectedIndices();
+    	if (selectedIdx.length == 0) {
+    	JOptionPane.showMessageDialog(
+    	parent,
+    	"Please select at least one recipient.",
+    	"No Recipients Selected",
+    	JOptionPane.WARNING_MESSAGE
+    	);
+    	return;
+    	}
+
+    	java.util.List<Visitor> selectedVisitors = new ArrayList<>();
+    	for (int i : selectedIdx) {
+    	if (i >= 0 && i < recipientObjects.size()) {
+    	selectedVisitors.add(recipientObjects.get(i));
+    	}
+    	}
+
+    	Event event = eventObjects.get(eventIndex);
+
+    	// NOTE: You need an overload in Agent like:
+    	// ArrayList<Email> prepareEmailsForEvent(Event e, String sub, String body, List<Visitor> recipients)
+    	ArrayList<Email> emails =
+    	agent.prepareEmailsForEvent(event, subject, bodyTemplate, selectedVisitors);
+
+    	MessagingService ms = new MessagingService();
+    	ms.enqueueEmails(emails);
+    	ms.sendAll();
+
+    	JOptionPane.showMessageDialog(
+    	parent,
+    	"Prepared and sent " + emails.size() + " emails.",
+    	"Emails Sent",
+    	JOptionPane.INFORMATION_MESSAGE
+    	);
+    	}
+    	}
+
     
     
     //Buttons that look cleaner than default swing buttons
