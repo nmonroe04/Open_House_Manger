@@ -1,0 +1,103 @@
+package org.finalproject.system;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.io.Serializable;
+
+public class House implements Serializable {
+
+    private String address;
+    private int price;
+    private int sqft;
+    private int beds;
+    private int baths;
+    private int yearBuilt;
+    private String description;
+    private boolean stillForSale;
+
+    private List<Event> events;
+
+    // NEW: paths to photos (can be absolute file paths or classpath paths)
+    private List<String> imagePaths;
+
+    public House(String address, int price, int sqft,
+                 int beds, int baths, int yearBuilt, String description) {
+        this.address = address;
+        this.price = price;
+        this.sqft = sqft;
+        this.beds = beds;
+        this.baths = baths;
+        this.yearBuilt = yearBuilt;
+        this.description = description;
+        this.stillForSale = true;
+        this.events = new ArrayList<>();
+
+        // NEW
+        this.imagePaths = new ArrayList<>();
+    }
+
+    public void addEvent(Event event) {
+        if (event != null && !events.contains(event)) {
+            events.add(event);
+        }
+    }
+
+    public List<Event> getEvents() {
+        return new ArrayList<>(events);
+    }
+
+    // ---------- NEW IMAGE HELPERS ----------
+
+    /** Add a path to an image for this house.
+     *  Path can be:
+     *   - absolute file path (e.g. "C:/images/main.jpg")
+     *   - classpath resource (e.g. "/org/finalproject/images/houses/main_front.jpg")
+     */
+    public void addImagePath(String path) {
+        if (path != null && !path.trim().isEmpty()) {
+            imagePaths.add(path.trim());
+        }
+    }
+
+    public List<String> getImagePaths() {
+        return new ArrayList<>(imagePaths);
+    }
+
+    // ---------------------------------------
+
+    public String getAddress() {
+        return address;
+    }
+
+    public int getPrice() {
+        return price;
+    }
+
+    public int getSqft() {
+        return sqft;
+    }
+
+    public int getBeds() {
+        return beds;
+    }
+
+    public int getBaths() {
+        return baths;
+    }
+
+    public int getYearBuilt() {
+        return yearBuilt;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public boolean isStillForSale() {
+        return stillForSale;
+    }
+
+    public void setStillForSale(boolean stillForSale) {
+        this.stillForSale = stillForSale;
+    }
+}
