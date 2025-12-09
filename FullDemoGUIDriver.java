@@ -16,28 +16,28 @@ public class FullDemoGUIDriver {
 
         // NOTE: Login.login(...) currently checks person.getName() as the username.
         // So the "username" to type on the login screen is actually the NAME below.
-        Agent alice = new Agent(
-                "Alice Agent",          // <-- username in GUI
-                "alice@example.com",
-                "555-1234",
-                "alice",                // stored but not used by Login
-                "password123"           // password in GUI
+        Agent aidan = new Agent(
+                "Aidan",                 // <-- username in GUI
+                "aidan@example.com",
+                "520-1234",
+                "Aidan",                 // stored but not used by Login
+                "password"               // password in GUI
         );
 
         Agent noah = new Agent(
                 "Noah Agent",           // <-- username in GUI
                 "noah@example.com",
-                "555-9876",
+                "602-9876",
                 "noah",
                 "noahpass"
         );
 
-        login.addPerson(alice);
+        login.addPerson(aidan);
         login.addPerson(noah);
 
         System.out.println("Login with:");
-        System.out.println("  Username: Alice Agent   Password: password123");
-        System.out.println("  Username: Noah Agent    Password: noahpass");
+        System.out.println("  Username: Aidan        Password: password");
+        System.out.println("  Username: Noah Agent   Password: noahpass");
 
         // -------------------------------------------------
         // 2. Sample houses
@@ -46,24 +46,24 @@ public class FullDemoGUIDriver {
                 "123 Main St",
                 500000,
                 2000,
-                3,
-                2,
+                10,
+                9,
                 1998,
-                "Charming home with open floor plan."
+                "Big, elegant mansion, perfect for all your diamonds."
         );
 
         House house2 = new House(
-                "456 Oak Ave",
+                "456 University Ave",
                 750000,
                 2500,
-                4,
-                3,
+                1,
+                1,
                 2005,
-                "Luxury home with pool and mountain views."
+                "Dirt House, please upgrade soon."
         );
 
         House house3 = new House(
-                "789 Sunset Blvd",
+                "789 Speedway Blvd",
                 650000,
                 2100,
                 3,
@@ -74,13 +74,13 @@ public class FullDemoGUIDriver {
 
         house1.addImagePath("/org/finalproject/images/houses/mainhousefront.jpg");
         house1.addImagePath("/org/finalproject/images/houses/mainhouseinside.jpg");
-        
+
         house2.addImagePath("/org/finalproject/images/houses/oakhousefront.jpg");
         house2.addImagePath("/org/finalproject/images/houses/oakhouseinside.jpg");
 
-        // Give Alice two houses, Noah two (house1 & house3)
-        alice.addProperty(house1);
-        alice.addProperty(house2);
+        // Give Aidan two houses, Noah two (house1 & house3)
+        aidan.addProperty(house1);
+        aidan.addProperty(house2);
 
         noah.addProperty(house1);
         noah.addProperty(house3);
@@ -90,42 +90,42 @@ public class FullDemoGUIDriver {
         // -------------------------------------------------
         LocalDateTime now = LocalDateTime.now();
 
-        // Event A (Alice, house1) - ACTIVE (visible in kiosk)
+        // Event A (Aidan, house1) - ACTIVE (visible in kiosk)
         LocalDateTime eATime = now.plusDays(1)
                                   .withHour(13).withMinute(0)
                                   .withSecond(0).withNano(0);
 
-        Event eventA = alice.createEvent(
+        Event eventA = aidan.createEvent(
                 house1,
                 eATime,
                 5,      // capacity
                 1111    // check-in code
         );
-        if (alice.validateEvent(eventA)) {
+        if (aidan.validateEvent(eventA)) {
             eventA.schedule();
-            eventA.activate();   // <- active & not closed => kiosk will show this
+            eventA.activate();   // active & not closed => kiosk will show this
         } else {
             System.out.println("Warning: eventA failed validation.");
         }
 
-        // Event B (Alice, house2) - SCHEDULED ONLY (agent can activate via GUI)
+        // Event B (Aidan, house2) - SCHEDULED ONLY (agent can activate via GUI)
         LocalDateTime eBTime = now.plusDays(2)
                                   .withHour(10).withMinute(30)
                                   .withSecond(0).withNano(0);
 
-        Event eventB = alice.createEvent(
+        Event eventB = aidan.createEvent(
                 house2,
                 eBTime,
                 3,
                 2222
         );
-        if (alice.validateEvent(eventB)) {
+        if (aidan.validateEvent(eventB)) {
             eventB.schedule();   // not activated yet
         } else {
             System.out.println("Warning: eventB failed validation.");
         }
 
-        // Event C (Noah, house3) - CLOSED (shows in lists but not kiosk)
+        // Event C (Noah, house3) - will end CLOSED (shows in lists but not kiosk)
         LocalDateTime eCTime = now.minusDays(1)
                                   .withHour(14).withMinute(0)
                                   .withSecond(0).withNano(0);
@@ -138,8 +138,7 @@ public class FullDemoGUIDriver {
         );
         if (noah.validateEvent(eventC)) {
             eventC.schedule();
-            eventC.activate();
-            eventC.close();      // closed past event
+            eventC.activate();   // we'll later close it to simulate a past event
         } else {
             System.out.println("Warning: eventC failed validation.");
         }
@@ -179,7 +178,7 @@ public class FullDemoGUIDriver {
         eventB.setRsvp(v4, RSVPStatus.YES);
         eventB.setRsvp(v5, RSVPStatus.YES);   // possibly overbook B (cap=3) if you add more later
 
-        // Event C (closed past event)
+        // Event C (will be closed past event)
         eventC.addInvitee(v1);
         eventC.addInvitee(v2);
         eventC.addInvitee(v5);
@@ -193,8 +192,6 @@ public class FullDemoGUIDriver {
         //    (for Check-in Records panel and attendance stats)
         // -------------------------------------------------
         // For eventA (must be active to accept check-ins)
-        eventA.activate();   // just to be sure
-
         if (eventA.addVisitor(v1)) {
             CheckInRecord rA1 = new CheckInRecord(
                     v1,
@@ -212,8 +209,7 @@ public class FullDemoGUIDriver {
             v3.addCheckInRecord(rA2);
         }
 
-        // For eventC (past event; simulate check-ins happened before closing)
-        eventC.activate();   // temporarily, so addVisitor works
+        // For eventC (simulate check-ins that happened before it was closed)
         if (eventC.addVisitor(v2)) {
             CheckInRecord rC1 = new CheckInRecord(
                     v2,
@@ -222,13 +218,17 @@ public class FullDemoGUIDriver {
             );
             v2.addCheckInRecord(rC1);
         }
-        eventC.close();      // now keep it closed as intended
+        // Now close eventC so it won't appear in kiosk
+        eventC.close();
 
         // -------------------------------------------------
         // 6. Launch GUI
         // -------------------------------------------------
         SwingUtilities.invokeLater(() -> {
-            OpenHouseManagerGUI gui = new OpenHouseManagerGUI("OpenHouseManager - Full Demo", login);
+            OpenHouseManagerGUI gui = new OpenHouseManagerGUI(
+                    "OpenHouseManager - Full Demo",
+                    login
+            );
             gui.setVisible(true);
         });
     }
