@@ -620,7 +620,7 @@ private static class KioskPanel extends JPanel {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM dd yyyy HH:mm");
         boolean foundEvents = false;
 
-        // ✅ New: track which events we've already added (by id)
+       
         java.util.Set<String> seenEventIds = new java.util.HashSet<>();
 
         for (Person p : people) {
@@ -834,7 +834,7 @@ private static class KioskPanel extends JPanel {
     // ======================================================
     //  HOUSES PANEL
     // ======================================================
-    private static class HousesPanel extends JPanel {
+   private static class HousesPanel extends JPanel {
         private OpenHouseManagerGUI parent;
         private JList<String> houseList;
         private DefaultListModel<String> listModel;
@@ -844,6 +844,7 @@ private static class KioskPanel extends JPanel {
         private JButton prevPhotoButton;
         private JButton nextPhotoButton;
 
+        // We still cache ImageIcons per house, but the source of truth is House.imagePaths
         private Map<House, java.util.List<ImageIcon>> housePhotos = new HashMap<>();
         private java.util.List<ImageIcon> currentPhotos = java.util.Collections.emptyList();
         private int currentPhotoIndex = -1;
@@ -916,9 +917,6 @@ private static class KioskPanel extends JPanel {
             photoControls.add(addPhotosButton);
             photoControls.add(nextPhotoButton);
 
-            photoControls.add(prevPhotoButton);
-            photoControls.add(nextPhotoButton);
-
             photoPanel.add(photoLabel, BorderLayout.CENTER);
             photoPanel.add(photoControls, BorderLayout.SOUTH);
 
@@ -973,6 +971,19 @@ private static class KioskPanel extends JPanel {
 
             for (House h : houses) {
                 listModel.addElement(h.getAddress());
+
+                // Build ImageIcons from any stored image paths
+                java.util.List<String> paths = h.getImagePaths();
+                java.util.List<ImageIcon> icons = new ArrayList<>();
+                for (String path : paths) {
+                    ImageIcon icon = loadIcon(path);
+                    if (icon != null) {
+                        icons.add(icon);
+                    }
+                }
+                if (!icons.isEmpty()) {
+                    housePhotos.put(h, icons);
+                }
             }
         }
 
@@ -1023,8 +1034,20 @@ private static class KioskPanel extends JPanel {
             detailsArea.setText(sb.toString());
             detailsArea.setCaretPosition(0);
 
-            // photos for this house
-            currentPhotos = housePhotos.getOrDefault(h, java.util.Collections.emptyList());
+            // photos for this house (from cache; if missing, build from paths)
+            java.util.List<ImageIcon> icons = housePhotos.get(h);
+            if (icons == null) {
+                icons = new ArrayList<>();
+                for (String path : h.getImagePaths()) {
+                    ImageIcon icon = loadIcon(path);
+                    if (icon != null) icons.add(icon);
+                }
+                if (!icons.isEmpty()) {
+                    housePhotos.put(h, icons);
+                }
+            }
+
+            currentPhotos = icons != null ? icons : java.util.Collections.emptyList();
             if (currentPhotos.isEmpty()) {
                 currentPhotoIndex = -1;
                 photoLabel.setIcon(null);
@@ -1071,15 +1094,15 @@ private static class KioskPanel extends JPanel {
             if (desc == null) desc = "";
 
             try {
-                int price = Integer.parseInt(priceStr.trim()); 
-                int sqft     = Integer.parseInt(sqftStr.trim());
-                int beds     = Integer.parseInt(bedsStr.trim());
-                int baths    = Integer.parseInt(bathsStr.trim());
-                int year     = Integer.parseInt(yearStr.trim());
+                int price = Integer.parseInt(priceStr.trim());
+                int sqft  = Integer.parseInt(sqftStr.trim());
+                int beds  = Integer.parseInt(bedsStr.trim());
+                int baths = Integer.parseInt(bathsStr.trim());
+                int year  = Integer.parseInt(yearStr.trim());
 
                 House newHouse = new House(
                         address.trim(),
-                        price,      // if your constructor is int, cast here: (int) price
+                        price,
                         sqft,
                         beds,
                         baths,
@@ -1103,8 +1126,9 @@ private static class KioskPanel extends JPanel {
                         File[] files = chooser.getSelectedFiles();
                         java.util.List<ImageIcon> photos = new ArrayList<>();
                         for (File f : files) {
-                            ImageIcon icon = new ImageIcon(f.getAbsolutePath());
-                            photos.add(icon);
+                            String path = f.getAbsolutePath();
+                            newHouse.addImagePath(path);              // <-- store path in model
+                            photos.add(new ImageIcon(path));          // cache icon
                         }
                         if (!photos.isEmpty()) {
                             housePhotos.put(newHouse, photos);
@@ -1112,7 +1136,7 @@ private static class KioskPanel extends JPanel {
                     }
                 }
 
-                // add to agent's list (or agent.addProperty(newHouse) if you have that)
+                // add to agent's list
                 agent.getProperties().add(newHouse);
 
                 refresh();
@@ -1164,7 +1188,8 @@ private static class KioskPanel extends JPanel {
             prevPhotoButton.setEnabled(hasPhotos && currentPhotoIndex > 0);
             nextPhotoButton.setEnabled(hasPhotos && currentPhotoIndex < currentPhotos.size() - 1);
         }
-        
+
+        // Add photos to an existing house from JFileChooser
         private void addPhotosToSelectedHouse() {
             Agent agent = parent.getCurrentAgent();
             if (agent == null) {
@@ -1196,7 +1221,9 @@ private static class KioskPanel extends JPanel {
             java.util.List<ImageIcon> photos = housePhotos.getOrDefault(h, new ArrayList<>());
 
             for (File f : files) {
-                photos.add(new ImageIcon(f.getAbsolutePath()));
+                String path = f.getAbsolutePath();
+                h.addImagePath(path);                     // <-- store path
+                photos.add(new ImageIcon(path));          // cache icon
             }
 
             if (!photos.isEmpty()) {
@@ -1205,6 +1232,28 @@ private static class KioskPanel extends JPanel {
                 currentPhotoIndex = 0;
                 showPhoto(currentPhotoIndex);
             }
+        }
+
+        /** Helper: load an icon from either a classpath resource or a file path. */
+        private ImageIcon loadIcon(String path) {
+            if (path == null || path.trim().isEmpty()) return null;
+            path = path.trim();
+
+            // classpath resource (e.g. "/org/finalproject/images/houses/main_front.jpg")
+            if (path.startsWith("/")) {
+                java.net.URL url = getClass().getResource(path);
+                if (url != null) {
+                    return new ImageIcon(url);
+                }
+            }
+
+            // else treat as file path
+            File f = new File(path);
+            if (f.exists()) {
+                return new ImageIcon(f.getAbsolutePath());
+            }
+
+            return null;
         }
     }
     
