@@ -1213,206 +1213,428 @@ private static class KioskPanel extends JPanel {
     
     
     
-    // ======================================================
-    //  EVENTS PANEL
-    // ======================================================
-    private static class EventsPanel extends JPanel {
-        private OpenHouseManagerGUI parent;
-        private JList<String> eventList;
-        private DefaultListModel<String> listModel;
-        private JTextArea detailsArea;
-        private java.util.List<Event> eventObjects = new ArrayList<>();
+ // ======================================================
+//  EVENTS PANEL
+// ======================================================
+private static class EventsPanel extends JPanel {
+    private OpenHouseManagerGUI parent;
+    private JList<String> eventList;
+    private DefaultListModel<String> listModel;
+    private JTextArea detailsArea;
+    private java.util.List<Event> eventObjects = new ArrayList<>();
 
-        public EventsPanel(OpenHouseManagerGUI parent) {
-            this.parent = parent;
-            setOpaque(false);
-            setLayout(new BorderLayout(10, 10));
+    // --- RSVP UI fields ---
+    private DefaultListModel<String> rsvpListModel;
+    private JList<String> rsvpList;
+    private java.util.List<Visitor> rsvpVisitors = new ArrayList<>();
+    private JComboBox<RSVPStatus> rsvpStatusCombo;
+    private JTextField inviteeNameField;
+    private JTextField inviteeEmailField;
+    private JTextField inviteePhoneField;
 
-            // --------- HEADER BAR ----------
-            JPanel header = new JPanel(new BorderLayout());
-            header.setOpaque(true);
-            header.setBackground(new Color(255, 255, 255, 220));
-            header.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+    public EventsPanel(OpenHouseManagerGUI parent) {
+        this.parent = parent;
+        setOpaque(false);
+        setLayout(new BorderLayout(10, 10));
 
-            JLabel title = new JLabel("Events");
-            title.setFont(new Font("Century Gothic", Font.BOLD, 20));
-            title.setForeground(new Color(40, 40, 40));
+        // --------- HEADER BAR ----------
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(true);
+        header.setBackground(new Color(255, 255, 255, 220));
+        header.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
 
-            JPanel headerButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
-            headerButtons.setOpaque(false);
-            
-            //this will do createevent in the agent class that we have
-            JButton createEventButton = createSecondaryButton("Create Event");
-            createEventButton.addActionListener(e -> parent.createEventFromGui());
-            headerButtons.add(createEventButton);
-            
-            JButton backButton = createSecondaryButton("Back");
-            backButton.addActionListener(e -> parent.showScreen(CARD_DASHBOARD));
-            headerButtons.add(backButton);
+        JLabel title = new JLabel("Events");
+        title.setFont(new Font("Century Gothic", Font.BOLD, 20));
+        title.setForeground(new Color(40, 40, 40));
 
-            header.add(title, BorderLayout.WEST);
-            header.add(headerButtons, BorderLayout.EAST);
+        JPanel headerButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+        headerButtons.setOpaque(false);
 
-            add(header, BorderLayout.NORTH);
+        // Create Event button
+        JButton createEventButton = createSecondaryButton("Create Event");
+        createEventButton.addActionListener(e -> parent.createEventFromGui());
+        headerButtons.add(createEventButton);
 
-            // --------- LEFT: EVENT LIST ----------
-            listModel = new DefaultListModel<>();
-            eventList = new JList<>(listModel);
-            eventList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-            eventList.setVisibleRowCount(18);
+        JButton backButton = createSecondaryButton("Back");
+        backButton.addActionListener(e -> parent.showScreen(CARD_DASHBOARD));
+        headerButtons.add(backButton);
 
-            JScrollPane listScroll = new JScrollPane(eventList);
+        header.add(title, BorderLayout.WEST);
+        header.add(headerButtons, BorderLayout.EAST);
 
-            // --------- RIGHT: DETAILS ----------
-            detailsArea = new JTextArea();
-            detailsArea.setEditable(false);
-            detailsArea.setLineWrap(true);
-            detailsArea.setWrapStyleWord(true);
-            detailsArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        add(header, BorderLayout.NORTH);
 
-            JScrollPane detailsScroll = new JScrollPane(detailsArea);
+        // --------- LEFT: EVENT LIST ----------
+        listModel = new DefaultListModel<>();
+        eventList = new JList<>(listModel);
+        eventList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        eventList.setVisibleRowCount(18);
 
-            JPanel rightPanel = new JPanel(new BorderLayout());
-            rightPanel.setOpaque(false);
-            rightPanel.add(detailsScroll, BorderLayout.CENTER);
-            
-            
-         // --- NEW: allows us to be able to change event status as an agent
-            JPanel eventActions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-            eventActions.setOpaque(false);
+        JScrollPane listScroll = new JScrollPane(eventList);
 
-            JButton activateButton = createSecondaryButton("Activate");
-            JButton closeButton    = createSecondaryButton("Close");
+        // --------- RIGHT: DETAILS + RSVP MANAGEMENT ----------
+        detailsArea = new JTextArea();
+        detailsArea.setEditable(false);
+        detailsArea.setLineWrap(true);
+        detailsArea.setWrapStyleWord(true);
+        detailsArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
 
-            activateButton.addActionListener(e -> changeEventStatus(true));
-            closeButton.addActionListener(e -> changeEventStatus(false));
+        JScrollPane detailsScroll = new JScrollPane(detailsArea);
 
-            eventActions.add(activateButton);
-            eventActions.add(closeButton);
+        JPanel rightPanel = new JPanel(new BorderLayout());
+        rightPanel.setOpaque(false);
 
-            rightPanel.add(eventActions, BorderLayout.SOUTH);
+        // --- RSVP panel (NEW) ---
+        JPanel rsvpPanel = buildRsvpPanel();
 
-            JSplitPane split = new JSplitPane(
-                    JSplitPane.HORIZONTAL_SPLIT,
-                    listScroll,
-                    rightPanel
-            );
-            split.setDividerLocation(260);
-            split.setResizeWeight(0.3);
-            split.setContinuousLayout(true);
+        // Split details (top) and RSVP panel (bottom)
+        JSplitPane rightSplit = new JSplitPane(
+                JSplitPane.VERTICAL_SPLIT,
+                detailsScroll,
+                rsvpPanel
+        );
+        rightSplit.setResizeWeight(0.6);
+        rightSplit.setContinuousLayout(true);
 
-            add(split, BorderLayout.CENTER);
+        rightPanel.add(rightSplit, BorderLayout.CENTER);
 
-            // selection listener
-            eventList.addListSelectionListener(e -> {
-                if (!e.getValueIsAdjusting()) {
-                    showEventDetails(eventList.getSelectedIndex());
-                }
-            });
-            
-        }
+        // --- Event actions: Activate / Close ---
+        JPanel eventActions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        eventActions.setOpaque(false);
 
-        public void refresh() {
-            listModel.clear();
-            detailsArea.setText("");
-            eventObjects.clear();
+        JButton activateButton = createSecondaryButton("Activate");
+        JButton closeButton    = createSecondaryButton("Close");
 
-            Agent agent = parent.getCurrentAgent();
-            if (agent == null) return;
+        activateButton.addActionListener(e -> changeEventStatus(true));
+        closeButton.addActionListener(e -> changeEventStatus(false));
 
-            java.util.List<House> houses = agent.getProperties();
-            if (houses == null) return;
+        eventActions.add(activateButton);
+        eventActions.add(closeButton);
 
-            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM dd yyyy HH:mm");
+        rightPanel.add(eventActions, BorderLayout.SOUTH);
 
-            for (House h : houses) {
-                java.util.List<Event> evs = h.getEvents();
-                if (evs == null) continue;
-                for (Event e : evs) {
-                    eventObjects.add(e);
-                    String label = e.getEventId()
-                            + " | " + h.getAddress()
-                            + " | " + (e.getStartTime() != null ? e.getStartTime().format(fmt) : "No time");
-                    listModel.addElement(label);
-                }
+        // --- Main split: events list (left) + rightPanel (right) ---
+        JSplitPane split = new JSplitPane(
+                JSplitPane.HORIZONTAL_SPLIT,
+                listScroll,
+                rightPanel
+        );
+        split.setDividerLocation(260);
+        split.setResizeWeight(0.3);
+        split.setContinuousLayout(true);
+
+        add(split, BorderLayout.CENTER);
+
+        // selection listener
+        eventList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                int index = eventList.getSelectedIndex();
+                showEventDetails(index);
             }
-
-            if (eventObjects.isEmpty()) {
-                listModel.addElement("(No events yet)");
-            }
-        }
-
-        private void showEventDetails(int index) {
-            if (index < 0 || index >= eventObjects.size()) {
-                detailsArea.setText("");
-                return;
-            }
-
-            Event e = eventObjects.get(index);
-            StringBuilder sb = new StringBuilder();
-            sb.append("Event ID: ").append(e.getEventId()).append("\n");
-            sb.append("Address: ").append(e.getAddress()).append("\n");
-            sb.append("Start Time: ").append(e.getStartTime()).append("\n\n");
-
-            sb.append("Capacity: ").append(e.getCapacity()).append("\n");
-            sb.append("Attendance: ").append(e.getAttendance())
-              .append(" / ").append(e.getCapacity()).append("\n");
-            sb.append("Attendance Rate: ").append(e.getAttendanceRate()).append("\n\n");
-
-            sb.append("Status:\n");
-            sb.append("  Scheduled: ").append(e.isScheduled()).append("\n");
-            sb.append("  Active: ").append(e.isActive()).append("\n");
-            sb.append("  Closed: ").append(e.isClosed()).append("\n\n");
-
-            sb.append("RSVP Summary:\n");
-            sb.append("  YES: ").append(e.getRsvpCount(RSVPStatus.YES)).append("\n");
-            sb.append("  NO: ").append(e.getRsvpCount(RSVPStatus.NO)).append("\n");
-            sb.append("  MAYBE: ").append(e.getRsvpCount(RSVPStatus.MAYBE)).append("\n");
-            sb.append("  NO RESPONSE: ").append(e.getRsvpCount(RSVPStatus.NO_RESPONSE)).append("\n");
-
-            detailsArea.setText(sb.toString());
-            detailsArea.setCaretPosition(0);
-        }
-     // Inside: private static class EventsPanel extends JPanel { ... }
-
-        private void changeEventStatus(boolean activate) {
-            int index = eventList.getSelectedIndex();
-            if (index < 0 || index >= eventObjects.size()) {
-                JOptionPane.showMessageDialog(
-                        parent,
-                        "Please select an event first.",
-                        "No Event Selected",
-                        JOptionPane.WARNING_MESSAGE
-                );
-                return;
-            }
-
-            Event e = eventObjects.get(index);
-
-            if (activate) {
-                // Make sure it is scheduled, then activate it
-                e.schedule();   // sets scheduled = true (if you ever unset it elsewhere)
-                e.activate();   // sets active = true (if not closed)
-            } else {
-                // Close the event (this also sets active = false)
-                e.close();
-            }
-
-            // 1) Refresh the details text in THIS panel
-            showEventDetails(index);
-
-            // 2) Refresh kiosk list so active/closed status is reflected there too
-            if (parent.kioskPanel != null) {
-                parent.kioskPanel.refresh();
-            }
-
-            // (Optional) also refresh check-in panel if it's open later:
-            if (parent.checkInPanel != null) {
-                parent.checkInPanel.refresh();
-            }
-        }
-
+        });
     }
+
+    // ------------------------------------------------------
+    // Build RSVP panel UI
+    // ------------------------------------------------------
+    private JPanel buildRsvpPanel() {
+        JPanel rsvpPanel = new JPanel(new BorderLayout(5, 5));
+        rsvpPanel.setOpaque(false);
+        rsvpPanel.setBorder(
+                BorderFactory.createTitledBorder("Invitees & RSVPs")
+        );
+
+        // List of invitees
+        rsvpListModel = new DefaultListModel<>();
+        rsvpList = new JList<>(rsvpListModel);
+        rsvpList.setVisibleRowCount(8);
+
+        JScrollPane rsvpScroll = new JScrollPane(rsvpList);
+        rsvpPanel.add(rsvpScroll, BorderLayout.CENTER);
+
+        // Bottom form + controls
+        JPanel bottom = new JPanel(new GridBagLayout());
+        bottom.setOpaque(false);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(3, 3, 3, 3);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+
+        // --- Invitee fields ---
+        bottom.add(new JLabel("Name:"), gbc);
+        gbc.gridx = 1;
+        inviteeNameField = new JTextField(12);
+        bottom.add(inviteeNameField, gbc);
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        bottom.add(new JLabel("Email:"), gbc);
+        gbc.gridx = 1;
+        inviteeEmailField = new JTextField(12);
+        bottom.add(inviteeEmailField, gbc);
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        bottom.add(new JLabel("Phone:"), gbc);
+        gbc.gridx = 1;
+        inviteePhoneField = new JTextField(12);
+        bottom.add(inviteePhoneField, gbc);
+
+        // --- Add Invitee button ---
+        gbc.gridy++;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        JButton addInviteeButton = createSecondaryButton("Add Invitee");
+        addInviteeButton.addActionListener(e -> addInviteeForSelectedEvent());
+        bottom.add(addInviteeButton, gbc);
+
+        // --- RSVP status + update ---
+        gbc.gridy++;
+        gbc.gridx = 0;
+        gbc.gridwidth = 1;
+        bottom.add(new JLabel("Set RSVP:"), gbc);
+
+        gbc.gridx = 1;
+        rsvpStatusCombo = new JComboBox<>(RSVPStatus.values());
+        bottom.add(rsvpStatusCombo, gbc);
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        JButton updateRsvpButton = createPrimaryButton("Update RSVP for Selected Invitee");
+        updateRsvpButton.addActionListener(e -> updateRsvpForSelectedInvitee());
+        bottom.add(updateRsvpButton, gbc);
+
+        rsvpPanel.add(bottom, BorderLayout.SOUTH);
+        return rsvpPanel;
+    }
+
+    // ------------------------------------------------------
+    // Refresh entire events list
+    // ------------------------------------------------------
+    public void refresh() {
+        listModel.clear();
+        detailsArea.setText("");
+        eventObjects.clear();
+        clearRsvpPanel();
+
+        Agent agent = parent.getCurrentAgent();
+        if (agent == null) return;
+
+        java.util.List<House> houses = agent.getProperties();
+        if (houses == null) return;
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM dd yyyy HH:mm");
+
+        for (House h : houses) {
+            java.util.List<Event> evs = h.getEvents();
+            if (evs == null) continue;
+            for (Event e : evs) {
+                eventObjects.add(e);
+                String label = e.getEventId()
+                        + " | " + h.getAddress()
+                        + " | " + (e.getStartTime() != null ? e.getStartTime().format(fmt) : "No time");
+                listModel.addElement(label);
+            }
+        }
+
+        if (eventObjects.isEmpty()) {
+            listModel.addElement("(No events yet)");
+        }
+    }
+
+    // ------------------------------------------------------
+    // Show event details + its RSVPs
+    // ------------------------------------------------------
+    private void showEventDetails(int index) {
+        if (index < 0 || index >= eventObjects.size()) {
+            detailsArea.setText("");
+            clearRsvpPanel();
+            return;
+        }
+
+        Event e = eventObjects.get(index);
+        StringBuilder sb = new StringBuilder();
+        sb.append("Event ID: ").append(e.getEventId()).append("\n");
+        sb.append("Address: ").append(e.getAddress()).append("\n");
+        sb.append("Start Time: ").append(e.getStartTime()).append("\n\n");
+
+        sb.append("Capacity: ").append(e.getCapacity()).append("\n");
+        sb.append("Attendance: ").append(e.getAttendance())
+          .append(" / ").append(e.getCapacity()).append("\n");
+        sb.append("Attendance Rate: ").append(e.getAttendanceRate()).append("\n\n");
+
+        sb.append("Status:\n");
+        sb.append("  Scheduled: ").append(e.isScheduled()).append("\n");
+        sb.append("  Active: ").append(e.isActive()).append("\n");
+        sb.append("  Closed: ").append(e.isClosed()).append("\n\n");
+
+        sb.append("RSVP Summary:\n");
+        sb.append("  YES: ").append(e.getRsvpCount(RSVPStatus.YES)).append("\n");
+        sb.append("  NO: ").append(e.getRsvpCount(RSVPStatus.NO)).append("\n");
+        sb.append("  MAYBE: ").append(e.getRsvpCount(RSVPStatus.MAYBE)).append("\n");
+        sb.append("  NO RESPONSE: ").append(e.getRsvpCount(RSVPStatus.NO_RESPONSE)).append("\n");
+
+        detailsArea.setText(sb.toString());
+        detailsArea.setCaretPosition(0);
+
+        // also refresh RSVP list for this event
+        refreshRsvpList(e);
+    }
+
+    // ------------------------------------------------------
+    // RSVP data helpers
+    // ------------------------------------------------------
+    private void clearRsvpPanel() {
+        if (rsvpListModel != null) {
+            rsvpListModel.clear();
+        }
+        rsvpVisitors.clear();
+        if (inviteeNameField != null) inviteeNameField.setText("");
+        if (inviteeEmailField != null) inviteeEmailField.setText("");
+        if (inviteePhoneField != null) inviteePhoneField.setText("");
+    }
+
+    private void refreshRsvpList(Event e) {
+        rsvpListModel.clear();
+        rsvpVisitors.clear();
+
+        if (e == null) return;
+
+        java.util.Map<Visitor, RSVPStatus> all = e.getAllRsvps();
+        for (java.util.Map.Entry<Visitor, RSVPStatus> entry : all.entrySet()) {
+            Visitor v = entry.getKey();
+            RSVPStatus status = entry.getValue();
+            rsvpVisitors.add(v);
+
+            String label = v.getName() + " <" + v.getEmail() + "> - " + status;
+            rsvpListModel.addElement(label);
+        }
+    }
+
+    // ------------------------------------------------------
+    // Add invitee using addInvitee(...)
+    // ------------------------------------------------------
+    private void addInviteeForSelectedEvent() {
+        int eventIndex = eventList.getSelectedIndex();
+        if (eventIndex < 0 || eventIndex >= eventObjects.size()) {
+            JOptionPane.showMessageDialog(
+                    parent,
+                    "Please select an event first.",
+                    "No Event Selected",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        Event e = eventObjects.get(eventIndex);
+
+        String name = inviteeNameField.getText().trim();
+        String email = inviteeEmailField.getText().trim();
+        String phone = inviteePhoneField.getText().trim();
+
+        if (name.isEmpty() || email.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                    parent,
+                    "Name and email are required for an invitee.",
+                    "Input Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        Visitor v = new Visitor(name, email, phone);
+        e.addInvitee(v);
+
+        refreshRsvpList(e);
+
+        inviteeNameField.setText("");
+        inviteeEmailField.setText("");
+        inviteePhoneField.setText("");
+    }
+
+    // ------------------------------------------------------
+    // Update RSVP using setRsvp(...)
+    // ------------------------------------------------------
+    private void updateRsvpForSelectedInvitee() {
+        int eventIndex = eventList.getSelectedIndex();
+        if (eventIndex < 0 || eventIndex >= eventObjects.size()) {
+            JOptionPane.showMessageDialog(
+                    parent,
+                    "Please select an event first.",
+                    "No Event Selected",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        Event e = eventObjects.get(eventIndex);
+
+        int inviteeIndex = rsvpList.getSelectedIndex();
+        if (inviteeIndex < 0 || inviteeIndex >= rsvpVisitors.size()) {
+            JOptionPane.showMessageDialog(
+                    parent,
+                    "Please select an invitee from the list.",
+                    "No Invitee Selected",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        Visitor v = rsvpVisitors.get(inviteeIndex);
+        RSVPStatus status = (RSVPStatus) rsvpStatusCombo.getSelectedItem();
+        if (status == null) {
+            JOptionPane.showMessageDialog(
+                    parent,
+                    "Please choose an RSVP status.",
+                    "No Status Selected",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        e.setRsvp(v, status);
+        refreshRsvpList(e);
+        showEventDetails(eventIndex); // refresh summary counts too
+    }
+    private void changeEventStatus(boolean activate) {
+        int index = eventList.getSelectedIndex();
+        if (index < 0 || index >= eventObjects.size()) {
+            JOptionPane.showMessageDialog(
+                    parent,
+                    "Please select an event first.",
+                    "No Event Selected",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        Event e = eventObjects.get(index);
+
+        if (activate) {
+            // Re-open or activate the event
+            e.schedule();   // ensure scheduled flag is true
+            e.activate();   // sets active=true and (with your change) closed=false
+        } else {
+            // Permanently (or temporarily) close
+            e.close();
+        }
+
+        // ✅ Refresh the displayed info
+        showEventDetails(index);
+
+        // ✅ Keep kiosk + check-ins in sync
+        if (parent.kioskPanel != null) {
+            parent.kioskPanel.refresh();
+        }
+        if (parent.checkInPanel != null) {
+            parent.checkInPanel.refresh();
+        }
+    }
+
+}
+
     
     
     
