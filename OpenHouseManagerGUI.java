@@ -1579,6 +1579,29 @@ private static class EventsPanel extends JPanel {
 
         Event e = eventObjects.get(eventIndex);
 
+        // 🚫 Block closed events with a popup
+        if (e.isClosed()) {
+            JOptionPane.showMessageDialog(
+                    parent,
+                    "This event is closed and cannot accept new invitees.",
+                    "Event Closed",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        // Optional: if you *also* want to enforce scheduled/active rule in the GUI:
+        if (!e.isScheduled() && !e.isActive()) {
+            JOptionPane.showMessageDialog(
+                    parent,
+                    "This event is not yet scheduled or active.\n" +
+                    "You can only add invitees to scheduled or open events.",
+                    "Event Not Ready",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
         String name = inviteeNameField.getText().trim();
         String email = inviteeEmailField.getText().trim();
         String phone = inviteePhoneField.getText().trim();
@@ -1687,205 +1710,230 @@ private static class EventsPanel extends JPanel {
     
     
     
-    /**
-     * Create a new Event using the Agent logic, with basic validation and
-     * safe handling of bad user input. After creation, capture the Agent's
-     * console prints into a JTextArea and show them in the GUI.
-     */
-    /**
-     * Create a new Event using the Agent logic, with basic validation and
-     * safe handling of bad user input. After creation, capture the Agent's
-     * console prints into a JTextArea and show them in the GUI.
-     */
-    private void createEventFromGui() {
-        // We are already inside OpenHouseManagerGUI, so use getCurrentAgent() and `this`
-        Agent agent = getCurrentAgent();
-        if (agent == null) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "No agent is currently logged in.",
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE
-            );
-            return;
-        }
-
-        java.util.List<House> houses = agent.getProperties();
-        if (houses == null || houses.isEmpty()) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "You must add at least one house before creating an event.",
-                    "No Houses",
-                    JOptionPane.WARNING_MESSAGE
-            );
-            return;
-        }
-
-        // ---- 1) Pick the house ----
-        String[] houseOptions = new String[houses.size()];
-        for (int i = 0; i < houses.size(); i++) {
-            houseOptions[i] = houses.get(i).getAddress();
-        }
-
-        String houseChoice = (String) JOptionPane.showInputDialog(
-                this,
-                "Select the house for this open house:",
-                "Create Event",
-                JOptionPane.PLAIN_MESSAGE,
-                null,
-                houseOptions,
-                houseOptions[0]
-        );
-
-        if (houseChoice == null) {
-            // user canceled
-            return;
-        }
-
-        House selectedHouse = null;
-        for (House h : houses) {
-            if (h.getAddress().equals(houseChoice)) {
-                selectedHouse = h;
-                break;
-            }
-        }
-        if (selectedHouse == null) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Unable to find the selected house.",
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE
-            );
-            return;
-        }
-
-        // ---- 2) Date & time ----
-        String dateTimeStr = JOptionPane.showInputDialog(
-                this,
-                "Enter start date & time (format: yyyy-MM-dd HH:mm)\nExample: 2025-12-24 13:30"
-        );
-        if (dateTimeStr == null) {
-            return; // canceled
-        }
-        dateTimeStr = dateTimeStr.trim();
-        if (dateTimeStr.isEmpty()) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Start date/time cannot be empty.",
-                    "Input Error",
-                    JOptionPane.ERROR_MESSAGE
-            );
-            return;
-        }
-
-        LocalDateTime startTime;
-        try {
-            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-            startTime = LocalDateTime.parse(dateTimeStr, fmt);
-        } catch (DateTimeParseException ex) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Invalid date/time format. Please use yyyy-MM-dd HH:mm.",
-                    "Input Error",
-                    JOptionPane.ERROR_MESSAGE
-            );
-            return;
-        }
-
-        // ---- 3) Capacity ----
-        String capacityStr = JOptionPane.showInputDialog(
-                this,
-                "Enter capacity (positive integer):"
-        );
-        if (capacityStr == null) {
-            return;
-        }
-        int capacity;
-        try {
-            capacity = Integer.parseInt(capacityStr.trim());
-            if (capacity <= 0) {
-                throw new NumberFormatException("capacity <= 0");
-            }
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Capacity must be a positive integer.",
-                    "Input Error",
-                    JOptionPane.ERROR_MESSAGE
-            );
-            return;
-        }
-
-        // ---- 4) Check-in code ----
-        String codeStr = JOptionPane.showInputDialog(
-                this,
-                "Enter a numeric check-in code (e.g., 1234):"
-        );
-        if (codeStr == null) {
-            return;
-        }
-        int checkInCode;
-        try {
-            checkInCode = Integer.parseInt(codeStr.trim());
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Check-in code must be a valid integer.",
-                    "Input Error",
-                    JOptionPane.ERROR_MESSAGE
-            );
-            return;
-        }
-
-        // ---- 5) Create event using Agent logic ----
-        Event newEvent;
-        try {
-            newEvent = agent.createEvent(selectedHouse, startTime, capacity, checkInCode);
-            if (newEvent == null) {
-                JOptionPane.showMessageDialog(
-                        this,
-                        "The event could not be created (Agent returned null).",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
-                return;
-            }
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "An unexpected error occurred while creating the event:\n" + ex.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE
-            );
-            ex.printStackTrace();
-            return;
-        }
-
-        // ---- 6) Capture Agent's prints (e.g., RSVP summary) into the GUI ----
-        String info = captureConsoleOutput(() ->
-                agent.printRsvpSummary(newEvent)
-        );
-
-        JTextArea infoArea = new JTextArea(info, 15, 50);
-        infoArea.setEditable(false);
-        infoArea.setLineWrap(true);
-        infoArea.setWrapStyleWord(true);
-
-        JScrollPane scroll = new JScrollPane(infoArea);
-        scroll.setPreferredSize(new Dimension(500, 300));
-
+  //CREATES EVENT LOGIC FOR ADD EVENT BOX
+private void createEventFromGui() {
+    Agent agent = getCurrentAgent();
+    if (agent == null) {
         JOptionPane.showMessageDialog(
                 this,
-                scroll,
-                "Event Created: " + newEvent.getEventId(),
-                JOptionPane.INFORMATION_MESSAGE
+                "No agent is currently logged in.",
+                "Error",
+                JOptionPane.ERROR_MESSAGE
         );
+        return;
+    }
 
-        // ---- 7) Refresh the Events panel so the new event appears in the list ----
-        if (eventsPanel != null) {
-            eventsPanel.refresh();
+    java.util.List<House> houses = agent.getProperties();
+    if (houses == null || houses.isEmpty()) {
+        JOptionPane.showMessageDialog(
+                this,
+                "You must add at least one house before creating an event.",
+                "No Houses",
+                JOptionPane.WARNING_MESSAGE
+        );
+        return;
+    }
+
+    // ---------- Build a single form panel ----------
+    JPanel form = new JPanel(new GridBagLayout());
+    form.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(4, 4, 4, 4);
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+
+    // House selector
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    form.add(new JLabel("House:"), gbc);
+
+    gbc.gridx = 1;
+    String[] houseOptions = new String[houses.size()];
+    for (int i = 0; i < houses.size(); i++) {
+        houseOptions[i] = houses.get(i).getAddress();
+    }
+    JComboBox<String> houseCombo = new JComboBox<>(houseOptions);
+    houseCombo.setSelectedIndex(0);
+    form.add(houseCombo, gbc);
+
+    // Start date/time
+    gbc.gridx = 0;
+    gbc.gridy++;
+    form.add(new JLabel("Start (yyyy-MM-dd HH:mm):"), gbc);
+
+    gbc.gridx = 1;
+    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    // default suggestion: tomorrow at 13:00
+    LocalDateTime defaultStart = LocalDateTime.now()
+            .plusDays(1)
+            .withHour(13)
+            .withMinute(0)
+            .withSecond(0)
+            .withNano(0);
+    JTextField dateTimeField = new JTextField(defaultStart.format(fmt), 18);
+    form.add(dateTimeField, gbc);
+
+    // Capacity
+    gbc.gridx = 0;
+    gbc.gridy++;
+    form.add(new JLabel("Capacity:"), gbc);
+
+    gbc.gridx = 1;
+    JTextField capacityField = new JTextField("20", 10);
+    form.add(capacityField, gbc);
+
+    // Check-in code
+    gbc.gridx = 0;
+    gbc.gridy++;
+    form.add(new JLabel("Check-in Code:"), gbc);
+
+    gbc.gridx = 1;
+    JTextField codeField = new JTextField("1234", 10);
+    form.add(codeField, gbc);
+
+    // ---------- Show dialog ----------
+    int result = JOptionPane.showConfirmDialog(
+            this,
+            form,
+            "Create Event",
+            JOptionPane.OK_CANCEL_OPTION,
+            JOptionPane.PLAIN_MESSAGE
+    );
+
+    if (result != JOptionPane.OK_OPTION) {
+        // User cancelled
+        return;
+    }
+
+    // ---------- Read & validate inputs ----------
+    String houseChoice = (String) houseCombo.getSelectedItem();
+    if (houseChoice == null || houseChoice.trim().isEmpty()) {
+        JOptionPane.showMessageDialog(
+                this,
+                "Please select a house.",
+                "Input Error",
+                JOptionPane.ERROR_MESSAGE
+        );
+        return;
+    }
+
+    House selectedHouse = null;
+    for (House h : houses) {
+        if (h.getAddress().equals(houseChoice)) {
+            selectedHouse = h;
+            break;
         }
     }
+    if (selectedHouse == null) {
+        JOptionPane.showMessageDialog(
+                this,
+                "Unable to find the selected house.",
+                "Error",
+                JOptionPane.ERROR_MESSAGE
+        );
+        return;
+    }
+
+    String dateTimeStr = dateTimeField.getText().trim();
+    if (dateTimeStr.isEmpty()) {
+        JOptionPane.showMessageDialog(
+                this,
+                "Start date/time cannot be empty.",
+                "Input Error",
+                JOptionPane.ERROR_MESSAGE
+        );
+        return;
+    }
+
+    LocalDateTime startTime;
+    try {
+        startTime = LocalDateTime.parse(dateTimeStr, fmt);
+    } catch (DateTimeParseException ex) {
+        JOptionPane.showMessageDialog(
+                this,
+                "Invalid date/time format. Please use yyyy-MM-dd HH:mm.",
+                "Input Error",
+                JOptionPane.ERROR_MESSAGE
+        );
+        return;
+    }
+
+    int capacity;
+    try {
+        capacity = Integer.parseInt(capacityField.getText().trim());
+        if (capacity <= 0) throw new NumberFormatException("capacity <= 0");
+    } catch (NumberFormatException ex) {
+        JOptionPane.showMessageDialog(
+                this,
+                "Capacity must be a positive integer.",
+                "Input Error",
+                JOptionPane.ERROR_MESSAGE
+        );
+        return;
+    }
+
+    int checkInCode;
+    try {
+        checkInCode = Integer.parseInt(codeField.getText().trim());
+    } catch (NumberFormatException ex) {
+        JOptionPane.showMessageDialog(
+                this,
+                "Check-in code must be a valid integer.",
+                "Input Error",
+                JOptionPane.ERROR_MESSAGE
+        );
+        return;
+    }
+
+    // ---------- Create event via Agent ----------
+    Event newEvent;
+    try {
+        newEvent = agent.createEvent(selectedHouse, startTime, capacity, checkInCode);
+        if (newEvent == null) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "The event could not be created (Agent returned null).",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+    } catch (Exception ex) {
+        JOptionPane.showMessageDialog(
+                this,
+                "An unexpected error occurred while creating the event:\n" + ex.getMessage(),
+                "Error",
+                JOptionPane.ERROR_MESSAGE
+        );
+        ex.printStackTrace();
+        return;
+    }
+
+    // ---------- Capture Agent printout (optional, same as before) ----------
+    String info = captureConsoleOutput(() ->
+            agent.printRsvpSummary(newEvent)
+    );
+
+    JTextArea infoArea = new JTextArea(info, 15, 50);
+    infoArea.setEditable(false);
+    infoArea.setLineWrap(true);
+    infoArea.setWrapStyleWord(true);
+
+    JScrollPane scroll = new JScrollPane(infoArea);
+    scroll.setPreferredSize(new Dimension(500, 300));
+
+    JOptionPane.showMessageDialog(
+            this,
+            scroll,
+            "Event Created: " + newEvent.getEventId(),
+            JOptionPane.INFORMATION_MESSAGE
+    );
+
+    // Refresh Events panel so new event appears
+    if (eventsPanel != null) {
+        eventsPanel.refresh();
+    }
+}
+
 
 
     
