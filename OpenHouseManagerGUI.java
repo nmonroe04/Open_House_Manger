@@ -1344,7 +1344,7 @@ private static class EventsPanel extends JPanel {
                 BorderFactory.createTitledBorder("Invitees & RSVPs")
         );
 
-        // List of invitees
+        // -------- Invitee list (top) --------
         rsvpListModel = new DefaultListModel<>();
         rsvpList = new JList<>(rsvpListModel);
         rsvpList.setVisibleRowCount(8);
@@ -1352,63 +1352,63 @@ private static class EventsPanel extends JPanel {
         JScrollPane rsvpScroll = new JScrollPane(rsvpList);
         rsvpPanel.add(rsvpScroll, BorderLayout.CENTER);
 
-        // Bottom form + controls
-        JPanel bottom = new JPanel(new GridBagLayout());
+        // -------- Bottom area: 2 columns --------
+        JPanel bottom = new JPanel(new GridLayout(1, 2, 12, 0));
         bottom.setOpaque(false);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(3, 3, 3, 3);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.gridx = 0;
-        gbc.gridy = 0;
 
-        // --- Invitee fields ---
-        bottom.add(new JLabel("Name:"), gbc);
-        gbc.gridx = 1;
-        inviteeNameField = new JTextField(12);
-        bottom.add(inviteeNameField, gbc);
+        /* ================= LEFT COLUMN ================= */
+        JPanel leftCol = new JPanel();
+        leftCol.setOpaque(false);
+        leftCol.setLayout(new BoxLayout(leftCol, BoxLayout.Y_AXIS));
 
-        gbc.gridy++;
-        gbc.gridx = 0;
-        bottom.add(new JLabel("Email:"), gbc);
-        gbc.gridx = 1;
-        inviteeEmailField = new JTextField(12);
-        bottom.add(inviteeEmailField, gbc);
+        leftCol.add(new JLabel("Name:"));
+        inviteeNameField = new JTextField(14);
+        leftCol.add(inviteeNameField);
+        leftCol.add(Box.createVerticalStrut(8));
 
-        gbc.gridy++;
-        gbc.gridx = 0;
-        bottom.add(new JLabel("Phone:"), gbc);
-        gbc.gridx = 1;
-        inviteePhoneField = new JTextField(12);
-        bottom.add(inviteePhoneField, gbc);
+        leftCol.add(new JLabel("Email:"));
+        inviteeEmailField = new JTextField(14);
+        leftCol.add(inviteeEmailField);
+        leftCol.add(Box.createVerticalStrut(8));
 
-        // --- Add Invitee button ---
-        gbc.gridy++;
-        gbc.gridx = 0;
-        gbc.gridwidth = 2;
+        leftCol.add(new JLabel("Phone:"));
+        inviteePhoneField = new JTextField(14);
+        leftCol.add(inviteePhoneField);
+
+        /* ================= RIGHT COLUMN ================= */
+        JPanel rightCol = new JPanel();
+        rightCol.setOpaque(false);
+        rightCol.setLayout(new BoxLayout(rightCol, BoxLayout.Y_AXIS));
+
         JButton addInviteeButton = createSecondaryButton("Add Invitee");
+        addInviteeButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         addInviteeButton.addActionListener(e -> addInviteeForSelectedEvent());
-        bottom.add(addInviteeButton, gbc);
 
-        // --- RSVP status + update ---
-        gbc.gridy++;
-        gbc.gridx = 0;
-        gbc.gridwidth = 1;
-        bottom.add(new JLabel("Set RSVP:"), gbc);
-
-        gbc.gridx = 1;
+        JPanel rsvpRow = new JPanel(new BorderLayout(6, 0));
+        rsvpRow.setOpaque(false);
+        rsvpRow.add(new JLabel("Set RSVP:"), BorderLayout.WEST);
         rsvpStatusCombo = new JComboBox<>(RSVPStatus.values());
-        bottom.add(rsvpStatusCombo, gbc);
+        rsvpRow.add(rsvpStatusCombo, BorderLayout.CENTER);
 
-        gbc.gridy++;
-        gbc.gridx = 0;
-        gbc.gridwidth = 2;
-        JButton updateRsvpButton = createPrimaryButton("Update RSVP for Selected Invitee");
+        JButton updateRsvpButton =
+                createPrimaryButton("Update RSVP for Selected Invitee");
+        updateRsvpButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         updateRsvpButton.addActionListener(e -> updateRsvpForSelectedInvitee());
-        bottom.add(updateRsvpButton, gbc);
+
+        rightCol.add(addInviteeButton);
+        rightCol.add(Box.createVerticalStrut(12));
+        rightCol.add(rsvpRow);
+        rightCol.add(Box.createVerticalStrut(12));
+        rightCol.add(updateRsvpButton);
+
+        // Add columns to bottom
+        bottom.add(leftCol);
+        bottom.add(rightCol);
 
         rsvpPanel.add(bottom, BorderLayout.SOUTH);
         return rsvpPanel;
     }
+
 
     // ------------------------------------------------------
     // Refresh entire events list
