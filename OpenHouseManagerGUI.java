@@ -44,6 +44,8 @@ public class OpenHouseManagerGUI extends JFrame {
     private CardLayout cardLayout;
     private JPanel mainPanel;
 
+    
+    //Define string ID for cards 
     private static final String CARD_WELCOME    = "WELCOME";
     private static final String CARD_LOGIN      = "LOGIN";
     private static final String CARD_CREATE     = "CREATE";
@@ -55,7 +57,7 @@ public class OpenHouseManagerGUI extends JFrame {
     private static final String CARD_KIOSK      = "KIOSK";   // added 12/8
     private static final String CARD_VISITORS   = "VISITORS";
 
-    // Panels
+    // Panels (one field per inner panel)
     private WelcomePanel welcomePanel;
     private LoginPanel loginPanel;
     private CreateAccountPanel createAccountPanel;
@@ -67,8 +69,11 @@ public class OpenHouseManagerGUI extends JFrame {
     private KioskPanel kioskPanel;
     private VisitorsPanel visitorsPanel;
 
+    
+    //shows GIF background
     private AnimatedBackgroundPanel backgroundPanel;
 
+    //2 different backgrounds 
     private static final String prelogin_bg = "/org/finalproject/images/background.gif";
     private static final String postlogin_bg = "/org/finalproject/images/postlogin.gif";
 
@@ -77,17 +82,17 @@ public class OpenHouseManagerGUI extends JFrame {
     // ======================================================
     public OpenHouseManagerGUI(String title, Login loginModel) {
         super(title);
-        this.loginModel = loginModel;
+        this.loginModel = loginModel;  //stores login model
 
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
 
-        mainPanel.setOpaque(false);
+        mainPanel.setOpaque(false); //sets where all panels will be 
 
         backgroundPanel = new AnimatedBackgroundPanel(prelogin_bg);
-        setContentPane(backgroundPanel);
+        setContentPane(backgroundPanel); //GIF is behind everything
 
-        // Create screens
+        // Create screens and uses "this" so they call back to main GUI
         welcomePanel       = new WelcomePanel(this);
         loginPanel         = new LoginPanel(this);
         createAccountPanel = new CreateAccountPanel(this);
@@ -99,7 +104,7 @@ public class OpenHouseManagerGUI extends JFrame {
         kioskPanel         = new KioskPanel(this);
         visitorsPanel      = new VisitorsPanel(this);
 
-        // Register cards
+        // Register cards and adds them to mainPanel
         mainPanel.add(welcomePanel,       CARD_WELCOME);
         mainPanel.add(loginPanel,         CARD_LOGIN);
         mainPanel.add(createAccountPanel, CARD_CREATE);
@@ -113,12 +118,13 @@ public class OpenHouseManagerGUI extends JFrame {
 
         backgroundPanel.add(mainPanel, BorderLayout.CENTER);
 
-        setSize(900, 550);
+        setSize(900, 550); //set start size
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        //close on exit
 
         showScreen(CARD_WELCOME);
-        setVisible(true);
+        setVisible(true); //after setup makes window finally visible
     }
 
     // ======================================================
@@ -143,6 +149,7 @@ public class OpenHouseManagerGUI extends JFrame {
         }
 
         // Refresh panels that depend on currentAgent
+        //KEEPS RESFRESHING PAGES
         if (CARD_DASHBOARD.equals(cardName)) {
             dashboardPanel.refresh();
         } else if (CARD_HOUSES.equals(cardName)) {
@@ -161,7 +168,7 @@ public class OpenHouseManagerGUI extends JFrame {
 
         cardLayout.show(mainPanel, cardName);
     }
-
+//responsible for changing backgrounds when logging in
     public void setCurrentAgent(Agent agent) {
         this.currentAgent = agent;
 
@@ -183,7 +190,7 @@ public class OpenHouseManagerGUI extends JFrame {
     public Login getLoginModel() {
         return loginModel;
     }
-
+//shows welcome screen again
     public void logout() {
         setCurrentAgent(null);
         showScreen(CARD_WELCOME);
@@ -204,6 +211,7 @@ public class OpenHouseManagerGUI extends JFrame {
             card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
             card.setBorder(BorderFactory.createEmptyBorder(30, 60, 30, 60));
 
+            //BELOW IS THE THREE MAIN BUTTONS WITH ITS STYLING
             JLabel title = new JLabel("Open House Manager");
             title.setFont(new Font("Century Gothic", Font.BOLD, 32));
             title.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -219,7 +227,7 @@ public class OpenHouseManagerGUI extends JFrame {
             loginButton.setAlignmentX(Component.CENTER_ALIGNMENT);
             createAccountButton.setAlignmentX(Component.CENTER_ALIGNMENT);
             kioskButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-
+//Switches cards 
             loginButton.addActionListener(e -> parent.showScreen(CARD_LOGIN));
             createAccountButton.addActionListener(e -> parent.showScreen(CARD_CREATE));
             kioskButton.addActionListener(e -> parent.showScreen(CARD_KIOSK));
@@ -254,7 +262,7 @@ public class OpenHouseManagerGUI extends JFrame {
             setLayout(new GridBagLayout()); // center card
 
             JPanel card = createCardPanel();
-
+//Styling for the login
             JLabel title = new JLabel("Login");
             title.setFont(new Font("Century Gothic", Font.BOLD, 24));
             title.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -280,7 +288,7 @@ public class OpenHouseManagerGUI extends JFrame {
                 String username = usernameField.getText().trim();
                 String password = new String(passwordField.getPassword());
                 Person p = parent.getLoginModel().login(username, password);
-
+//goes to agent menu if login is successfull
                 if (p instanceof Agent) {
                     parent.setCurrentAgent((Agent) p);
                     parent.showScreen(CARD_DASHBOARD);
@@ -288,7 +296,7 @@ public class OpenHouseManagerGUI extends JFrame {
                     JOptionPane.showMessageDialog(parent, "Invalid login.", "Error", JOptionPane.ERROR_MESSAGE);
                 }
             });
-
+//Box size specs below
             card.add(title);
             card.add(Box.createRigidArea(new Dimension(0, 15)));
             card.add(userRow);
@@ -327,6 +335,7 @@ public class OpenHouseManagerGUI extends JFrame {
     title.setFont(new Font("Century Gothic", Font.BOLD, 24));
     title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
+    //the 5 text fields used
     JTextField nameField = new JTextField(15);
     JTextField emailField = new JTextField(15);
     JTextField phoneField = new JTextField(15);
@@ -385,7 +394,7 @@ public class OpenHouseManagerGUI extends JFrame {
         String phone = phoneField.getText().trim();
         String username = usernameField.getText().trim();
         String password = new String(passwordField.getPassword());
-
+//----checks for all fields being with an input VERY IMPORTANT ---
         if (name.isEmpty() || email.isEmpty() || phone.isEmpty()
                 || username.isEmpty() || password.isEmpty()) {
             JOptionPane.showMessageDialog(
@@ -406,7 +415,7 @@ public class OpenHouseManagerGUI extends JFrame {
                 "Success",
                 JOptionPane.INFORMATION_MESSAGE
         );
-
+//---------Send agent to the dashboard upon login-------
         parent.setCurrentAgent(newAgent);
         parent.showScreen(CARD_DASHBOARD);
     });
@@ -435,7 +444,7 @@ public class OpenHouseManagerGUI extends JFrame {
 
         private JComboBox<String> eventCombo;
         private java.util.List<Event> eventObjects = new ArrayList<>();
-
+//all needed sing in stuff that visitors use
         private JTextField nameField;
         private JTextField emailField;
         private JTextField phoneField;
@@ -557,7 +566,7 @@ public class OpenHouseManagerGUI extends JFrame {
 
             card.add(form, BorderLayout.CENTER);
 
-            // ----- FOOTER (Check-in + Info buttons) -----
+            // ----- FOOTER (Checkin + Info buttons) -----
             JPanel footer = new JPanel(new FlowLayout(FlowLayout.CENTER));
             footer.setOpaque(false);
 
@@ -571,7 +580,7 @@ public class OpenHouseManagerGUI extends JFrame {
             footer.add(infoButton);
             card.add(footer, BorderLayout.SOUTH);
 
-            // center card
+            // centers card
             GridBagConstraints outer = new GridBagConstraints();
             outer.gridx = 0;
             outer.gridy = 0;
@@ -579,6 +588,10 @@ public class OpenHouseManagerGUI extends JFrame {
         }
 
         /** Called from showScreen(CARD_KIOSK). Populate the event list. */
+        //ONLY INCLUDE ACTIVE EVENTS NO CLOSED ONES
+        //AVOID DUPLICATE EVENTS IF MULTIPLE AGENTS HAVE IT
+        // via seenEventIds
+        //clears form fields as well 
         public void refresh() {
             eventCombo.removeAllItems();
             eventObjects.clear();
@@ -627,7 +640,7 @@ public class OpenHouseManagerGUI extends JFrame {
 
                             foundEvents = true;
                             eventObjects.add(e);
-
+//uses date and time but cleans it up for better viewing
                             String label = e.getEventId()
                                     + " - " + h.getAddress()
                                     + " - " + e.getStartTime().format(fmt);
@@ -637,7 +650,7 @@ public class OpenHouseManagerGUI extends JFrame {
                     }
                 }
             }
-
+//THIS WILL CATCH IF EVENTS FROM DRIVER OR MANUAL ADDING DO NOT EXIST*
             if (!foundEvents) {
                 messageArea.setText(
                         "No active events available for check-in.\n" +
@@ -651,12 +664,12 @@ public class OpenHouseManagerGUI extends JFrame {
             messageArea.setText("");
 
             // 1) Make sure an event is selected
-            int idx = eventCombo.getSelectedIndex();
-            if (idx < 0 || idx >= eventObjects.size()) {
+            int evnt = eventCombo.getSelectedIndex();
+            if (evnt < 0 || evnt >= eventObjects.size()) {
                 messageArea.setText("Please select an event.");
                 return;
             }
-            Event event = eventObjects.get(idx);
+            Event event = eventObjects.get(evnt);
 
             // 2) Read user input
             String name  = nameField.getText().trim();
@@ -671,6 +684,7 @@ public class OpenHouseManagerGUI extends JFrame {
             }
 
             // 3) Parse and validate check-in code
+            //2 error cases: not int format or does not match up with stored val
             int codeInt;
             try {
                 codeInt = Integer.parseInt(code);
@@ -723,15 +737,20 @@ public class OpenHouseManagerGUI extends JFrame {
             final Visitor finalVisitor = visitor;
 
             // 9) Optionally capture the Visitor's console output into the GUI
+            //uses console print from background function (prinrCheckInRecord)
             String info = parent.captureConsoleOutput(() -> {
                 finalVisitor.printCheckInRecord();  // your existing method
             });
-
+//End
             messageArea.setText("Check-in successful!\n\n" + info);
         }
 
         /**
          * Open a read-only browser window where visitors can see houses and photos.
+         * this will looks through all agents and house
+         * and make a no duplicate list (since agents may share)
+         * so visitors can browse. No houses with events -> exception message
+         * make seperate window with list
          */
         private void openVisitorHouseBrowser() {
             Login login = parent.getLoginModel();
@@ -747,6 +766,7 @@ public class OpenHouseManagerGUI extends JFrame {
             }
 
             // Collect unique houses that have at least one event (so they are relevant)
+            //do not want no event houses
             LinkedHashSet<House> housesWithEvents = new LinkedHashSet<>();
 
             for (Person p : people) {
@@ -792,7 +812,7 @@ public class OpenHouseManagerGUI extends JFrame {
             welcomeLabel = new JLabel("Welcome");
             welcomeLabel.setFont(new Font("Century Gothic", Font.BOLD, 24));
             welcomeLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
+//All Agent access feature buttons needed 
             JButton checkinButton = createPrimaryButton("Check-in Records");
             JButton eventsButton  = createPrimaryButton("Events");
             JButton housesButton  = createPrimaryButton("Houses");
@@ -834,7 +854,8 @@ public class OpenHouseManagerGUI extends JFrame {
             add(card, gbc);
         }
 
-        public void refresh() {
+        public void refresh() { //this will change name depending on 
+        	//agent login
             Agent a = parent.getCurrentAgent();
             welcomeLabel.setText("Welcome, " + (a != null ? a.getName() : ""));
         }
@@ -864,6 +885,7 @@ public class OpenHouseManagerGUI extends JFrame {
             setLayout(new BorderLayout(10, 10));  // fill most of the window
 
             // ---------- HEADER (top full width) ----------
+            //Add house and back buttons will be here
             JPanel header = new JPanel(new BorderLayout());
             header.setOpaque(true);
             header.setBackground(new Color(255, 255, 255, 220)); // soft white bar
@@ -891,11 +913,12 @@ public class OpenHouseManagerGUI extends JFrame {
             add(header, BorderLayout.NORTH);
 
             // ---------- LEFT SIDE: HOUSE LIST ----------
+       
             listModel = new DefaultListModel<>();
             houseList = new JList<>(listModel);
             houseList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
             houseList.setVisibleRowCount(18);
-
+//Scroll if needed (not enough in driver for that)
             JScrollPane listScroll = new JScrollPane(houseList);
 
             // ---------- RIGHT SIDE: PHOTOS + DETAILS ----------
@@ -962,7 +985,11 @@ public class OpenHouseManagerGUI extends JFrame {
             updatePhotoControls();
         }
 
-        // Refresh list from the current agent
+        /* Refresh list from the current agent
+        Clears everything
+        Creates list
+        Fills house with photos that are linked to them
+        */
         public void refresh() {
             listModel.clear();
             detailsArea.setText("");
@@ -1069,6 +1096,7 @@ public class OpenHouseManagerGUI extends JFrame {
         }
 
         // Add house (with optional photos) — all in GUI
+        //Might be easier to try to implement background code instead?
         private void addNewHouse() {
             Agent agent = parent.getCurrentAgent();
             if (agent == null) {
@@ -1164,6 +1192,8 @@ public class OpenHouseManagerGUI extends JFrame {
         }
 
         // show specific photo index
+        //Scales photo to look nice
+        //
         private void showPhoto(int index) {
             if (currentPhotos == null || currentPhotos.isEmpty()) {
                 photoLabel.setIcon(null);
@@ -1199,6 +1229,7 @@ public class OpenHouseManagerGUI extends JFrame {
         }
 
         // Add photos to an existing house from JFileChooser
+        // Will be selected off file explorer on computer
         private void addPhotosToSelectedHouse() {
             Agent agent = parent.getCurrentAgent();
             if (agent == null) {
@@ -1244,6 +1275,7 @@ public class OpenHouseManagerGUI extends JFrame {
         }
 
         /** Helper: load an icon from either a classpath resource or a file path. */
+        //we will be using classpath resources in the driver!!
         private ImageIcon loadIcon(String path) {
             if (path == null || path.trim().isEmpty()) return null;
             path = path.trim();
