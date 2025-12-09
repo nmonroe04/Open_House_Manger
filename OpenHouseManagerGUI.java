@@ -317,110 +317,114 @@ public class OpenHouseManagerGUI extends JFrame {
         private JPasswordField passwordField;
 
         public CreateAccountPanel(OpenHouseManagerGUI parent) {
-            setOpaque(false); //allows gif background to be in play
-            setLayout(new GridBagLayout());
-            GridBagConstraints gbc = new GridBagConstraints();
-            gbc.insets = new Insets(5, 5, 5, 5);
-            gbc.fill = GridBagConstraints.HORIZONTAL;
+    setOpaque(false);                 // allow GIF background
+    setLayout(new GridBagLayout());    // center the card
 
-            JLabel title = new JLabel("Create Account", SwingConstants.CENTER);
-            title.setFont(new Font("Century Gothic", Font.BOLD, 24));
+    // ----- Translucent card -----
+    JPanel card = createCardPanel();   // already translucent + padded
 
-            gbc.gridx = 0;
-            gbc.gridy = 0;
-            gbc.gridwidth = 2;
-            add(title, gbc);
-            gbc.gridwidth = 1;
+    JLabel title = new JLabel("Create Account");
+    title.setFont(new Font("Century Gothic", Font.BOLD, 24));
+    title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-            gbc.gridy++;
-            gbc.gridx = 0;
-            add(new JLabel("Name:"), gbc);
-            gbc.gridx = 1;
-            nameField = new JTextField(15);
-            add(nameField, gbc);
+    JTextField nameField = new JTextField(15);
+    JTextField emailField = new JTextField(15);
+    JTextField phoneField = new JTextField(15);
+    JTextField usernameField = new JTextField(15);
+    JPasswordField passwordField = new JPasswordField(15);
 
-            gbc.gridy++;
-            gbc.gridx = 0;
-            add(new JLabel("Email:"), gbc);
-            gbc.gridx = 1;
-            emailField = new JTextField(15);
-            add(emailField, gbc);
+    card.add(title);
+    card.add(Box.createVerticalStrut(15));
 
-            gbc.gridy++;
-            gbc.gridx = 0;
-            add(new JLabel("Phone:"), gbc);
-            gbc.gridx = 1;
-            phoneField = new JTextField(15);
-            add(phoneField, gbc);
+    // ----- Name row -----
+    JPanel nameRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    nameRow.setOpaque(false);
+    nameRow.add(new JLabel("Name:"));
+    nameRow.add(nameField);
+    card.add(nameRow);
 
-            gbc.gridy++;
-            gbc.gridx = 0;
-            add(new JLabel("Username:"), gbc);
-            gbc.gridx = 1;
-            usernameField = new JTextField(15);
-            add(usernameField, gbc);
+    // ----- Email row -----
+    JPanel emailRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    emailRow.setOpaque(false);
+    emailRow.add(new JLabel("Email:"));
+    emailRow.add(emailField);
+    card.add(emailRow);
 
-            gbc.gridy++;
-            gbc.gridx = 0;
-            add(new JLabel("Password:"), gbc);
-            gbc.gridx = 1;
-            passwordField = new JPasswordField(15);
-            add(passwordField, gbc);
+    // ----- Phone row -----
+    JPanel phoneRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    phoneRow.setOpaque(false);
+    phoneRow.add(new JLabel("Phone:"));
+    phoneRow.add(phoneField);
+    card.add(phoneRow);
 
-            gbc.gridy++;
-            gbc.gridx = 0;
-            JButton backButton = new JButton("Back");
-            add(backButton, gbc);
+    // ----- Username row -----
+    JPanel userRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    userRow.setOpaque(false);
+    userRow.add(new JLabel("Username:"));
+    userRow.add(usernameField);
+    card.add(userRow);
 
-            gbc.gridx = 1;
-            JButton createButton = new JButton("Create Account");
-            add(createButton, gbc);
+    // ----- Password row -----
+    JPanel passRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    passRow.setOpaque(false);
+    passRow.add(new JLabel("Password:"));
+    passRow.add(passwordField);
+    card.add(passRow);
 
-            backButton.addActionListener(e -> parent.showScreen(CARD_WELCOME));
+    card.add(Box.createVerticalStrut(15));
 
-            createButton.addActionListener(e -> {
-                String name = nameField.getText().trim();
-                String email = emailField.getText().trim();
-                String phone = phoneField.getText().trim();
-                String username = usernameField.getText().trim();
-                String password = new String(passwordField.getPassword());
+    // ----- Buttons -----
+    JButton backButton = createSecondaryButton("Back");
+    JButton createButton = createPrimaryButton("Create Account");
 
-                if (name.isEmpty() || email.isEmpty() || phone.isEmpty()
-                        || username.isEmpty() || password.isEmpty()) {
-                    JOptionPane.showMessageDialog(
-                            parent,
-                            "All fields are required.",
-                            "Input Error",
-                            JOptionPane.ERROR_MESSAGE
-                    );
-                    return;
-                }
+    backButton.addActionListener(e -> parent.showScreen(CARD_WELCOME));
 
-                Login loginModel = parent.getLoginModel();
-                if (loginModel == null) {
-                    JOptionPane.showMessageDialog(
-                            parent,
-                            "Login system not initialized.",
-                            "Error",
-                            JOptionPane.ERROR_MESSAGE
-                    );
-                    return;
-                }
+    createButton.addActionListener(e -> {
+        String name = nameField.getText().trim();
+        String email = emailField.getText().trim();
+        String phone = phoneField.getText().trim();
+        String username = usernameField.getText().trim();
+        String password = new String(passwordField.getPassword());
 
-                Agent newAgent = new Agent(name, email, phone, username, password);
-                loginModel.addPerson(newAgent);
-
-                JOptionPane.showMessageDialog(
-                        parent,
-                        "Account created successfully.",
-                        "Success",
-                        JOptionPane.INFORMATION_MESSAGE
-                );
-
-                parent.setCurrentAgent(newAgent);
-                parent.showScreen(CARD_DASHBOARD);
-            });
+        if (name.isEmpty() || email.isEmpty() || phone.isEmpty()
+                || username.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                    parent,
+                    "All fields are required.",
+                    "Input Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
         }
+
+        Agent newAgent = new Agent(name, email, phone, username, password);
+        parent.getLoginModel().addPerson(newAgent);
+
+        JOptionPane.showMessageDialog(
+                parent,
+                "Account created successfully.",
+                "Success",
+                JOptionPane.INFORMATION_MESSAGE
+        );
+
+        parent.setCurrentAgent(newAgent);
+        parent.showScreen(CARD_DASHBOARD);
+    });
+
+    JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+    buttonRow.setOpaque(false);
+    buttonRow.add(backButton);
+    buttonRow.add(createButton);
+
+    card.add(buttonRow);
+
+    // ----- Center card -----
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    add(card, gbc);
+}
+
     }
 
     // ======================================================
