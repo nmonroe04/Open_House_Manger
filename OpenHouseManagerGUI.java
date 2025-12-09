@@ -317,65 +317,64 @@ public class OpenHouseManagerGUI extends JFrame {
         private JPasswordField passwordField;
 
         public CreateAccountPanel(OpenHouseManagerGUI parent) {
-            setOpaque(false);                 // allow GIF background
-            setLayout(new GridBagLayout());    // center the card
+            setOpaque(false); //allows gif background to be in play
+            setLayout(new GridBagLayout());
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.insets = new Insets(5, 5, 5, 5);
+            gbc.fill = GridBagConstraints.HORIZONTAL;
 
-            // ----- Translucent card -----
-            JPanel card = createCardPanel();   // already translucent + padded
-
-            JLabel title = new JLabel("Create Account");
+            JLabel title = new JLabel("Create Account", SwingConstants.CENTER);
             title.setFont(new Font("Century Gothic", Font.BOLD, 24));
-            title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-            JTextField nameField = new JTextField(15);
-            JTextField emailField = new JTextField(15);
-            JTextField phoneField = new JTextField(15);
-            JTextField usernameField = new JTextField(15);
-            JPasswordField passwordField = new JPasswordField(15);
+            gbc.gridx = 0;
+            gbc.gridy = 0;
+            gbc.gridwidth = 2;
+            add(title, gbc);
+            gbc.gridwidth = 1;
 
-            card.add(title);
-            card.add(Box.createVerticalStrut(15));
+            gbc.gridy++;
+            gbc.gridx = 0;
+            add(new JLabel("Name:"), gbc);
+            gbc.gridx = 1;
+            nameField = new JTextField(15);
+            add(nameField, gbc);
 
-            // ----- Name row -----
-            JPanel nameRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            nameRow.setOpaque(false);
-            nameRow.add(new JLabel("Name:"));
-            nameRow.add(nameField);
-            card.add(nameRow);
+            gbc.gridy++;
+            gbc.gridx = 0;
+            add(new JLabel("Email:"), gbc);
+            gbc.gridx = 1;
+            emailField = new JTextField(15);
+            add(emailField, gbc);
 
-            // ----- Email row -----
-            JPanel emailRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            emailRow.setOpaque(false);
-            emailRow.add(new JLabel("Email:"));
-            emailRow.add(emailField);
-            card.add(emailRow);
+            gbc.gridy++;
+            gbc.gridx = 0;
+            add(new JLabel("Phone:"), gbc);
+            gbc.gridx = 1;
+            phoneField = new JTextField(15);
+            add(phoneField, gbc);
 
-            // ----- Phone row -----
-            JPanel phoneRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            phoneRow.setOpaque(false);
-            phoneRow.add(new JLabel("Phone:"));
-            phoneRow.add(phoneField);
-            card.add(phoneRow);
+            gbc.gridy++;
+            gbc.gridx = 0;
+            add(new JLabel("Username:"), gbc);
+            gbc.gridx = 1;
+            usernameField = new JTextField(15);
+            add(usernameField, gbc);
 
-            // ----- Username row -----
-            JPanel userRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            userRow.setOpaque(false);
-            userRow.add(new JLabel("Username:"));
-            userRow.add(usernameField);
-            card.add(userRow);
+            gbc.gridy++;
+            gbc.gridx = 0;
+            add(new JLabel("Password:"), gbc);
+            gbc.gridx = 1;
+            passwordField = new JPasswordField(15);
+            add(passwordField, gbc);
 
-            // ----- Password row -----
-            JPanel passRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            passRow.setOpaque(false);
-            passRow.add(new JLabel("Password:"));
-            passRow.add(passwordField);
-            card.add(passRow);
+            gbc.gridy++;
+            gbc.gridx = 0;
+            JButton backButton = new JButton("Back");
+            add(backButton, gbc);
 
-            card.add(Box.createVerticalStrut(15));
-
-            // ----- Buttons -----
-            JButton backButton = createSecondaryButton("Back");
-            JButton createButton = createPrimaryButton("Create Account");
+            gbc.gridx = 1;
+            JButton createButton = new JButton("Create Account");
+            add(createButton, gbc);
 
             backButton.addActionListener(e -> parent.showScreen(CARD_WELCOME));
 
@@ -397,8 +396,19 @@ public class OpenHouseManagerGUI extends JFrame {
                     return;
                 }
 
+                Login loginModel = parent.getLoginModel();
+                if (loginModel == null) {
+                    JOptionPane.showMessageDialog(
+                            parent,
+                            "Login system not initialized.",
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
+                }
+
                 Agent newAgent = new Agent(name, email, phone, username, password);
-                parent.getLoginModel().addPerson(newAgent);
+                loginModel.addPerson(newAgent);
 
                 JOptionPane.showMessageDialog(
                         parent,
@@ -410,21 +420,7 @@ public class OpenHouseManagerGUI extends JFrame {
                 parent.setCurrentAgent(newAgent);
                 parent.showScreen(CARD_DASHBOARD);
             });
-
-            JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
-            buttonRow.setOpaque(false);
-            buttonRow.add(backButton);
-            buttonRow.add(createButton);
-
-            card.add(buttonRow);
-
-            // ----- Center card -----
-            GridBagConstraints gbc = new GridBagConstraints();
-            gbc.gridx = 0;
-            gbc.gridy = 0;
-            add(card, gbc);
         }
-
     }
 
     // ======================================================
@@ -595,8 +591,11 @@ public class OpenHouseManagerGUI extends JFrame {
                 return;
             }
 
-       
-        java.util.Set<String> seenEventIds = new java.util.HashSet<>();
+            List<Person> people = login.getAllPeople();
+            if (people.isEmpty()) {
+                messageArea.setText("No agents configured yet.");
+                return;
+            }
 
             DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM dd yyyy HH:mm");
             boolean foundEvents = false;
@@ -840,7 +839,7 @@ public class OpenHouseManagerGUI extends JFrame {
     // ======================================================
     //  HOUSES PANEL
     // ======================================================
-   private static class HousesPanel extends JPanel {
+    private static class HousesPanel extends JPanel {
         private OpenHouseManagerGUI parent;
         private JList<String> houseList;
         private DefaultListModel<String> listModel;
@@ -850,7 +849,7 @@ public class OpenHouseManagerGUI extends JFrame {
         private JButton prevPhotoButton;
         private JButton nextPhotoButton;
 
-        // We still cache ImageIcons per house, but the source of truth is House.imagePaths
+        // Cache ImageIcons per house; source of truth is House.imagePaths
         private Map<House, java.util.List<ImageIcon>> housePhotos = new HashMap<>();
         private java.util.List<ImageIcon> currentPhotos = java.util.Collections.emptyList();
         private int currentPhotoIndex = -1;
@@ -1133,7 +1132,7 @@ public class OpenHouseManagerGUI extends JFrame {
                         java.util.List<ImageIcon> photos = new ArrayList<>();
                         for (File f : files) {
                             String path = f.getAbsolutePath();
-                            newHouse.addImagePath(path);              // <-- store path in model
+                            newHouse.addImagePath(path);              // store path in model
                             photos.add(new ImageIcon(path));          // cache icon
                         }
                         if (!photos.isEmpty()) {
@@ -1228,7 +1227,7 @@ public class OpenHouseManagerGUI extends JFrame {
 
             for (File f : files) {
                 String path = f.getAbsolutePath();
-                h.addImagePath(path);                     // <-- store path
+                h.addImagePath(path);                     // store path
                 photos.add(new ImageIcon(path));          // cache icon
             }
 
@@ -1569,32 +1568,16 @@ public class OpenHouseManagerGUI extends JFrame {
 
             Event e = eventObjects.get(eventIndex);
 
-        // 🚫 Block closed events with a popup
-        if (e.isClosed()) {
-            JOptionPane.showMessageDialog(
-                    parent,
-                    "This event is closed and cannot accept new invitees.",
-                    "Event Closed",
-                    JOptionPane.WARNING_MESSAGE
-            );
-            return;
-        }
-
-        // Optional: if you *also* want to enforce scheduled/active rule in the GUI:
-        if (!e.isScheduled() && !e.isActive()) {
-            JOptionPane.showMessageDialog(
-                    parent,
-                    "This event is not yet scheduled or active.\n" +
-                    "You can only add invitees to scheduled or open events.",
-                    "Event Not Ready",
-                    JOptionPane.WARNING_MESSAGE
-            );
-            return;
-        }
-
-        String name = inviteeNameField.getText().trim();
-        String email = inviteeEmailField.getText().trim();
-        String phone = inviteePhoneField.getText().trim();
+            // Block closed events with a popup
+            if (e.isClosed()) {
+                JOptionPane.showMessageDialog(
+                        parent,
+                        "This event is closed and cannot accept new invitees.",
+                        "Event Closed",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
 
             if (!e.isScheduled() && !e.isActive()) {
                 JOptionPane.showMessageDialog(
@@ -1706,239 +1689,229 @@ public class OpenHouseManagerGUI extends JFrame {
         }
     }
 
-}
-
-    
-    
-    
-  //CREATES EVENT LOGIC FOR ADD EVENT BOX
-private void createEventFromGui() {
-    Agent agent = getCurrentAgent();
-    if (agent == null) {
-        JOptionPane.showMessageDialog(
-                this,
-                "No agent is currently logged in.",
-                "Error",
-                JOptionPane.ERROR_MESSAGE
-        );
-        return;
-    }
-
-    java.util.List<House> houses = agent.getProperties();
-    if (houses == null || houses.isEmpty()) {
-        JOptionPane.showMessageDialog(
-                this,
-                "You must add at least one house before creating an event.",
-                "No Houses",
-                JOptionPane.WARNING_MESSAGE
-        );
-        return;
-    }
-
-    // ---------- Build a single form panel ----------
-    JPanel form = new JPanel(new GridBagLayout());
-    form.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-    GridBagConstraints gbc = new GridBagConstraints();
-    gbc.insets = new Insets(4, 4, 4, 4);
-    gbc.fill = GridBagConstraints.HORIZONTAL;
-
-    // House selector
-    gbc.gridx = 0;
-    gbc.gridy = 0;
-    form.add(new JLabel("House:"), gbc);
-
-    gbc.gridx = 1;
-    String[] houseOptions = new String[houses.size()];
-    for (int i = 0; i < houses.size(); i++) {
-        houseOptions[i] = houses.get(i).getAddress();
-    }
-    JComboBox<String> houseCombo = new JComboBox<>(houseOptions);
-    houseCombo.setSelectedIndex(0);
-    form.add(houseCombo, gbc);
-
-    // Start date/time
-    gbc.gridx = 0;
-    gbc.gridy++;
-    form.add(new JLabel("Start (yyyy-MM-dd HH:mm):"), gbc);
-
-    gbc.gridx = 1;
-    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    // default suggestion: tomorrow at 13:00
-    LocalDateTime defaultStart = LocalDateTime.now()
-            .plusDays(1)
-            .withHour(13)
-            .withMinute(0)
-            .withSecond(0)
-            .withNano(0);
-    JTextField dateTimeField = new JTextField(defaultStart.format(fmt), 18);
-    form.add(dateTimeField, gbc);
-
-    // Capacity
-    gbc.gridx = 0;
-    gbc.gridy++;
-    form.add(new JLabel("Capacity:"), gbc);
-
-    gbc.gridx = 1;
-    JTextField capacityField = new JTextField("20", 10);
-    form.add(capacityField, gbc);
-
-    // Check-in code
-    gbc.gridx = 0;
-    gbc.gridy++;
-    form.add(new JLabel("Check-in Code:"), gbc);
-
-    gbc.gridx = 1;
-    JTextField codeField = new JTextField("1234", 10);
-    form.add(codeField, gbc);
-
-    // ---------- Show dialog ----------
-    int result = JOptionPane.showConfirmDialog(
-            this,
-            form,
-            "Create Event",
-            JOptionPane.OK_CANCEL_OPTION,
-            JOptionPane.PLAIN_MESSAGE
-    );
-
-    if (result != JOptionPane.OK_OPTION) {
-        // User cancelled
-        return;
-    }
-
-    // ---------- Read & validate inputs ----------
-    String houseChoice = (String) houseCombo.getSelectedItem();
-    if (houseChoice == null || houseChoice.trim().isEmpty()) {
-        JOptionPane.showMessageDialog(
-                this,
-                "Please select a house.",
-                "Input Error",
-                JOptionPane.ERROR_MESSAGE
-        );
-        return;
-    }
-
-    House selectedHouse = null;
-    for (House h : houses) {
-        if (h.getAddress().equals(houseChoice)) {
-            selectedHouse = h;
-            break;
-        }
-    }
-    if (selectedHouse == null) {
-        JOptionPane.showMessageDialog(
-                this,
-                "Unable to find the selected house.",
-                "Error",
-                JOptionPane.ERROR_MESSAGE
-        );
-        return;
-    }
-
-    String dateTimeStr = dateTimeField.getText().trim();
-    if (dateTimeStr.isEmpty()) {
-        JOptionPane.showMessageDialog(
-                this,
-                "Start date/time cannot be empty.",
-                "Input Error",
-                JOptionPane.ERROR_MESSAGE
-        );
-        return;
-    }
-
-    LocalDateTime startTime;
-    try {
-        startTime = LocalDateTime.parse(dateTimeStr, fmt);
-    } catch (DateTimeParseException ex) {
-        JOptionPane.showMessageDialog(
-                this,
-                "Invalid date/time format. Please use yyyy-MM-dd HH:mm.",
-                "Input Error",
-                JOptionPane.ERROR_MESSAGE
-        );
-        return;
-    }
-
-    int capacity;
-    try {
-        capacity = Integer.parseInt(capacityField.getText().trim());
-        if (capacity <= 0) throw new NumberFormatException("capacity <= 0");
-    } catch (NumberFormatException ex) {
-        JOptionPane.showMessageDialog(
-                this,
-                "Capacity must be a positive integer.",
-                "Input Error",
-                JOptionPane.ERROR_MESSAGE
-        );
-        return;
-    }
-
-    int checkInCode;
-    try {
-        checkInCode = Integer.parseInt(codeField.getText().trim());
-    } catch (NumberFormatException ex) {
-        JOptionPane.showMessageDialog(
-                this,
-                "Check-in code must be a valid integer.",
-                "Input Error",
-                JOptionPane.ERROR_MESSAGE
-        );
-        return;
-    }
-
-    // ---------- Create event via Agent ----------
-    Event newEvent;
-    try {
-        newEvent = agent.createEvent(selectedHouse, startTime, capacity, checkInCode);
-        if (newEvent == null) {
+    // CREATES EVENT LOGIC FOR ADD EVENT BOX
+    private void createEventFromGui() {
+        Agent agent = getCurrentAgent();
+        if (agent == null) {
             JOptionPane.showMessageDialog(
                     this,
-                    "The event could not be created (Agent returned null).",
+                    "No agent is currently logged in.",
                     "Error",
                     JOptionPane.ERROR_MESSAGE
             );
             return;
         }
-    } catch (Exception ex) {
+
+        java.util.List<House> houses = agent.getProperties();
+        if (houses == null || houses.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "You must add at least one house before creating an event.",
+                    "No Houses",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        // ---------- Build a single form panel ----------
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(4, 4, 4, 4);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // House selector
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        form.add(new JLabel("House:"), gbc);
+
+        gbc.gridx = 1;
+        String[] houseOptions = new String[houses.size()];
+        for (int i = 0; i < houses.size(); i++) {
+            houseOptions[i] = houses.get(i).getAddress();
+        }
+        JComboBox<String> houseCombo = new JComboBox<>(houseOptions);
+        houseCombo.setSelectedIndex(0);
+        form.add(houseCombo, gbc);
+
+        // Start date/time
+        gbc.gridx = 0;
+        gbc.gridy++;
+        form.add(new JLabel("Start (yyyy-MM-dd HH:mm):"), gbc);
+
+        gbc.gridx = 1;
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        // default suggestion: tomorrow at 13:00
+        LocalDateTime defaultStart = LocalDateTime.now()
+                .plusDays(1)
+                .withHour(13)
+                .withMinute(0)
+                .withSecond(0)
+                .withNano(0);
+        JTextField dateTimeField = new JTextField(defaultStart.format(fmt), 18);
+        form.add(dateTimeField, gbc);
+
+        // Capacity
+        gbc.gridx = 0;
+        gbc.gridy++;
+        form.add(new JLabel("Capacity:"), gbc);
+
+        gbc.gridx = 1;
+        JTextField capacityField = new JTextField("20", 10);
+        form.add(capacityField, gbc);
+
+        // Check-in code
+        gbc.gridx = 0;
+        gbc.gridy++;
+        form.add(new JLabel("Check-in Code:"), gbc);
+
+        gbc.gridx = 1;
+        JTextField codeField = new JTextField("1234", 10);
+        form.add(codeField, gbc);
+
+        // ---------- Show dialog ----------
+        int result = JOptionPane.showConfirmDialog(
+                this,
+                form,
+                "Create Event",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE
+        );
+
+        if (result != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        // ---------- Read & validate inputs ----------
+        String houseChoice = (String) houseCombo.getSelectedItem();
+        if (houseChoice == null || houseChoice.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Please select a house.",
+                    "Input Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        House selectedHouse = null;
+        for (House h : houses) {
+            if (h.getAddress().equals(houseChoice)) {
+                selectedHouse = h;
+                break;
+            }
+        }
+        if (selectedHouse == null) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Unable to find the selected house.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        String dateTimeStr = dateTimeField.getText().trim();
+        if (dateTimeStr.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Start date/time cannot be empty.",
+                    "Input Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        LocalDateTime startTime;
+        try {
+            startTime = LocalDateTime.parse(dateTimeStr, fmt);
+        } catch (DateTimeParseException ex) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Invalid date/time format. Please use yyyy-MM-dd HH:mm.",
+                    "Input Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        int capacity;
+        try {
+            capacity = Integer.parseInt(capacityField.getText().trim());
+            if (capacity <= 0) throw new NumberFormatException("capacity <= 0");
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Capacity must be a positive integer.",
+                    "Input Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        int checkInCode;
+        try {
+            checkInCode = Integer.parseInt(codeField.getText().trim());
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Check-in code must be a valid integer.",
+                    "Input Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        // ---------- Create event via Agent ----------
+        Event newEvent;
+        try {
+            newEvent = agent.createEvent(selectedHouse, startTime, capacity, checkInCode);
+            if (newEvent == null) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "The event could not be created (Agent returned null).",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "An unexpected error occurred while creating the event:\n" + ex.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            ex.printStackTrace();
+            return;
+        }
+
+        // ---------- Capture Agent printout ----------
+        String info = captureConsoleOutput(() ->
+                agent.printRsvpSummary(newEvent)
+        );
+
+        JTextArea infoArea = new JTextArea(info, 15, 50);
+        infoArea.setEditable(false);
+        infoArea.setLineWrap(true);
+        infoArea.setWrapStyleWord(true);
+
+        JScrollPane scroll = new JScrollPane(infoArea);
+        scroll.setPreferredSize(new Dimension(500, 300));
+
         JOptionPane.showMessageDialog(
                 this,
-                "An unexpected error occurred while creating the event:\n" + ex.getMessage(),
-                "Error",
-                JOptionPane.ERROR_MESSAGE
+                scroll,
+                "Event Created: " + newEvent.getEventId(),
+                JOptionPane.INFORMATION_MESSAGE
         );
-        ex.printStackTrace();
-        return;
+
+        // Refresh Events panel so new event appears
+        if (eventsPanel != null) {
+            eventsPanel.refresh();
+        }
     }
 
-    // ---------- Capture Agent printout (optional, same as before) ----------
-    String info = captureConsoleOutput(() ->
-            agent.printRsvpSummary(newEvent)
-    );
-
-    JTextArea infoArea = new JTextArea(info, 15, 50);
-    infoArea.setEditable(false);
-    infoArea.setLineWrap(true);
-    infoArea.setWrapStyleWord(true);
-
-    JScrollPane scroll = new JScrollPane(infoArea);
-    scroll.setPreferredSize(new Dimension(500, 300));
-
-    JOptionPane.showMessageDialog(
-            this,
-            scroll,
-            "Event Created: " + newEvent.getEventId(),
-            JOptionPane.INFORMATION_MESSAGE
-    );
-
-    // Refresh Events panel so new event appears
-    if (eventsPanel != null) {
-        eventsPanel.refresh();
-    }
-}
-
-
-
-    
-    
     // ======================================================
     //  CHECK-IN RECORDS PANEL
     // ======================================================
